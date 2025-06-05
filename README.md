@@ -1,5 +1,5 @@
 # CellularScaleModel
 Honours project 
 
-To install dependwncies, run: 
+To install dependencies, run: 
     ~ pip install -r requirements.txt
