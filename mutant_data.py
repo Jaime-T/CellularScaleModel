@@ -4,93 +4,155 @@
 import pandas as pd
 import numpy as np
 import pickle
-import os
-from getSequence import getseq # reference: https://github.com/ryanemenecker/getSequence 
+import os, re
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
-def get_wildtype_sequence(uniprot_id):
-    return getseq(str(uniprot_id), uniprot_id=True, just_sequence=True)
- 
+""" Function: Apply a mutation to a coding nucleotide sequence 
+  and return the mutated sequence """
+def make_mutation(seq: str, hgvs: str) -> str:
+
+  # case 1) substitution/missense mutation e.g. c.563C>T
+  m = re.match(r".+:c\.(\d+)([ACGT])>([ACGT])$", hgvs)
+  if m:
+    pos = int(m.group(1)) - 1
+    return seq[:pos] + m.group(3) + seq[pos+1:]
+
+  # case 2) insertion e.g. c.21_22insT
+  m = re.match(r".+:c\.(\d+)_(\d+)ins([ACGT]+)$", hgvs)
+  if m:
+    a = int(m.group(1))
+    ins = m.group(3)
+    return seq[:a] + ins + seq[a:]
+
+  # case 3) deletion e.g. c.80_84del or c.80del
+  m = re.match(r".+:c\.(\d+)_(\d+)del$", hgvs)
+  if m:
+    a, b = int(m.group(1)) - 1, int(m.group(2))
+    return seq[:a] + seq[b:]
+  m = re.match(r".+:c\.(\d+)del$", hgvs)
+  if m:
+    p = int(m.group(1)) - 1
+    return seq[:p] + seq[p+1:]
+
+  # case 4) inversion: change to reverse complement e.g. c.18_19inv
+  m = re.match(r".+:c\.(\d+)_(\d+)inv$", hgvs)
+  if m:
+    a, b = int(m.group(1)) - 1, int(m.group(2))
+    frag = seq[a:b]
+    inv  = str(Seq(frag).reverse_complement())
+    return seq[:a] + inv + seq[b:]
+
+  # case 5) duplication e.g. c.1_2dup or c.52dup
+  m = re.match(r".+:c\.(\d+)_(\d+)dup$", hgvs)
+  if m:
+    a, b = int(m.group(1)) - 1, int(m.group(2))
+    return seq[:b] + seq[a:b] + seq[b:]
+  m = re.match(r".+:c\.(\d+)dup$", hgvs)
+  if m:
+    p = int(m.group(1))
+    return seq[:p] + seq[p-1:p] + seq[p:]
+
+  #case 6) deletion-insertion (delins) e.g. c.1_3delinsG or c.56delinsAC 
+  m = re.match(r".+:c\.(\d+)_(\d+)delins([ACGT]+)$", hgvs)
+  if m:
+    a, b, ins = int(m.group(1)) - 1, int(m.group(2)), m.group(3)
+    return seq[:a] + ins + seq[b:]
+  
+  m = re.match(r".+:c\.(\d+)delins([ACGT]+)$", hgvs)
+  if m:
+    a, ins = int(m.group(1)) - 1, m.group(2)
+    return seq[:a] + ins + seq[a+1:]
+
+  raise ValueError(f"Unsupported HGVS pattern: {hgvs}")
+
+
+""" Function: Translate a coding DNA sequence and return the protein
+    up to (but not including) the first stop codon. """
+def translate_until_stop(dna_seq: str) -> str:
+  return str(Seq(dna_seq).translate(to_stop=True))
+
+
 def main():
 
-    # load depmap data from local file
-    #depmap_df = pd.read_csv('/Users/jtaitz/Documents/Honours/datasets/depmap/OmicsSomaticMutations.csv', sep=',', low_memory=False)
-    depmap_df = pd.read_csv('/Users/jaimetaitz/Downloads/OmicsSomaticMutations.csv', sep=',', low_memory=False)
+  # Step 1: load coding sequence data from Ensembl biomart in fasta format
+  #fasta_path = '/Users/jaimetaitz/Downloads/mart_export_utr.txt'
+  fasta_path = 'cds_with_3utr.fasta'
+  if not os.path.isfile(fasta_path):
+    raise FileNotFoundError(f"Could not find {fasta_path}")
 
-    # Identify which samples have an associated UniprotID in the UniprotID column (many are empty, with no UniprotID)
-    depmap_with_uniprotid = depmap_df[depmap_df['UniprotID'].notna()] # 407669 out of 718369 have uniprotID not null (uniprot_ids.count())
+  # parse into SeqRecord objects
+  records = SeqIO.parse(fasta_path, "fasta")
+
+  # store in a dict: { transcript_id: SeqRecord }
+  transcript_dict = {}
+  for rec in records:
+    # header looks like:
+    #   ENSG00000001461|ENSG00000001461.19|ENST00000003912|ENST00000003912.9
+    # split on '|' and take the last field as the transcript versioned ID
+    tid = rec.id.split("|")[-1]
     
-    # Extract the UniprotID from those samples, and print them
-    uniprot_ids = depmap_with_uniprotid['UniprotID']
+    # reset the record's .id and clear description if you like
+    rec.id = tid
+    rec.description = ""
+    transcript_dict[tid] = rec
 
-    # Turn into a list of strings
-    uniprot_string_list = uniprot_ids.tolist()
 
-    # Get the protein sequence from the sample's UniprotID using the getseq function from the getSequence package
-    # Example is: seq = getseq(['Q9BY66-1', 'Q9BY66-1'], uniprot_id=True, just_sequence=True)
+  # Step 2: load depmap mutation data from local file
+  OmicsSomaticMutations = pd.read_csv('/Users/jaimetaitz/Downloads/OmicsSomaticMutations.csv', sep=',', low_memory=False)
 
-    # Make a new empty column for wildtype protein sequence, and mutant type sequence
-    depmap_with_uniprotid['wildtype_seq'] = np.nan
-    depmap_with_uniprotid['mutant_seq'] = np.nan
+  # Step 3: make container for mutated seqRecords
+  mutated_records = []
+
+  # Step 4: Iterate through each row of mutations data table
+  for _, row in OmicsSomaticMutations.iterrows():
+
+    # we only care about the mutations that result in a protein change e.g. p.* annotation
+    protein_chg = row["ProteinChange"]
+    if not (isinstance(protein_chg, str) and protein_chg.startswith("p.")):
+      continue
     
-    print(uniprot_ids.head(5))
-    print(depmap_with_uniprotid.head(5))
+    hgvs = row["DNAChange"] # where hgvs is the format of the dna change 
+    print('hgvs is:', hgvs)
+    transcript_id = hgvs.split(":", 1)[0]
+
+    wt_seq = str(transcript_dict[transcript_id].seq)
+    try:
+      mut_seq = make_mutation(wt_seq, hgvs)
+    except ValueError as e:
+      print(f"Error: Could not apply {hgvs}: {e}")
+      continue
     
-    # Load existing dictionary or initialize a new one. UniprotID as key, and wildtype protein sequence as value in key-value pair 
-    if os.path.exists('uniprot_sequences.pkl'):
-      with open('uniprot_sequences.pkl', 'rb') as file:
-        uniprotid_wildtype_seq_dict = pickle.load(file)
-    else:
-      uniprotid_wildtype_seq_dict = {}
+    # translate up to first stop
+    prot_seq_mut = translate_until_stop(mut_seq)
+    prot_seq_wt = translate_until_stop(wt_seq)
 
-    #For each unique uniprotID in the dataframe, get its wildtype protein sequence and set it as value in dictionary 
-    unique_uniprot_ids = depmap_with_uniprotid['UniprotID'].unique().tolist()
-    print('length of list is')
-    print(len(unique_uniprot_ids))
-
-    # Process each UniProt ID
-    for id in unique_uniprot_ids:
-      if str(id) not in uniprotid_wildtype_seq_dict:
-        print(f"Processing ID: {id}")
-        try:
-          wildtype_seq = getseq(str(id), uniprot_id=True, just_sequence=True)
-          uniprotid_wildtype_seq_dict[str(id)] = str(wildtype_seq)
-          print(f"Retrieved sequence: {wildtype_seq}")
-        except Exception as e:
-          print(f"Error retrieving sequence for UniProt ID {id}: {e}\n")
-      else:
-        print(f"ID {id} already processed.")
-
-    # Save the updated dictionary
-    with open('uniprot_sequences.pkl', 'wb') as file:
-      pickle.dump(uniprotid_wildtype_seq_dict, file, protocol=pickle.HIGHEST_PROTOCOL)
+    # build a SeqRecord for the mutated CDS
+    rec = SeqRecord(
+      Seq(mut_seq),
+      id=f"{tid}|{row['HugoSymbol']}|{protein_chg}",
+      description=f"{hgvs}; wt protein up to stop: {prot_seq_wt}; mutant protein up to stop: {prot_seq_mut}"
+      )
+    print(rec)
     
+    # attach the protein as an annotation if you like
+    rec.annotations["protein"] = prot_seq_mut
 
-    print(f"Total entries: {len(uniprotid_wildtype_seq_dict)}")
+    mutated_records.append(rec)
 
-
-
-    # Add wildtype sequence to each row .. need to fix 
-    #depmap_with_uniprotid['wildtype_seq'] = depmap_with_uniprotid['UniprotID'].apply(get_wildtype_sequence)
-    '''#For each row, add entries to the wildtype and mutant columns (this is currently very slow as searching same uniprotid multiple times)
-    for row in depmap_with_uniprotid.itertuples():
-        uniprot_id = row.UniprotID
-        print('uniprot_id:', uniprot_id)
-        wildtype_seq = getseq(str(uniprot_id), uniprot_id=True, just_sequence=True)
-        print(wildtype_seq)
-        #row['wildtype_seq'] = wildtype_seq
-
-    print(depmap_with_uniprotid.head(5))'''
-
-    #print(depmap_df.head(10))
-    #print(depmap_df.shape)
-
-
-    # COSMIC DB:
-    #cosmic_df = pd.read_csv('/Users/jtaitz/Documents/Honours/datasets/cosmic/Cosmic_MutantCensus_Tsv_v101_GRCh38/Cosmic_MutantCensus_v101_GRCh38.tsv', sep='\t',low_memory=False)
-    #print(cosmic_df.head(10))
-    #print(cosmic_df.shape)
+    #if row["DNAChange"] == "ENST00000433179.4:c.2258del":
+    #  break
     
 
+  # mutated_records now holds one SeqRecord per applied variant
+  print(f"Generated {len(mutated_records)} mutated sequences")
 
+
+  ''' COSMIC DB:
+  #cosmic_df = pd.read_csv('/Users/jtaitz/Documents/Honours/datasets/cosmic/Cosmic_MutantCensus_Tsv_v101_GRCh38/Cosmic_MutantCensus_v101_GRCh38.tsv', sep='\t',low_memory=False)
+  #print(cosmic_df.head(10))
+  #print(cosmic_df.shape)'''
+  
 if __name__ == '__main__':
   main()
