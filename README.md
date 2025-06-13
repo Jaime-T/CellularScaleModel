@@ -1,9 +1,13 @@
 # CellularScaleModel
 Honours project 
 
+Instructions to input into terminal
+
 To install dependencies, run: 
-<<<<<<< HEAD
     ~ pip install -r requirements.txt
-=======
-    ~ pip install -r requirements.txt
->>>>>>> c3cc8a4fabe6d93423244a3501ef6c316057ce42
+
+To activate virtual environment, run:
+    ~ source csm_venv/bin/activate
+
+To run the program, run:
+    ~ python3 mutant_data.py
