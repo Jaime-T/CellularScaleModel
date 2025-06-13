@@ -126,8 +126,12 @@ def main():
   # Step 3: make container for mutated seqRecords
   mutated_records = []
 
-  # Step 4: Iterate through each row of mutations data table
-  for _, row in OmicsSomaticMutations.iterrows():
+  # Step 4: initialise empty new columns for protein wt and mut type seqs
+  OmicsSomaticMutations['wt_protein_seq'] = None
+  OmicsSomaticMutations['mt_protein_seq'] = None
+
+  # Step 5: Iterate through each row of mutations data table
+  for idx, row in OmicsSomaticMutations.iterrows():
 
     # we only care about the mutations that result in a protein change e.g. p.* annotation
     protein_chg = row["ProteinChange"]
@@ -178,6 +182,10 @@ def main():
 
     mutated_records.append(rec)
 
+    # Assign the protein sequences to the DataFrame
+    OmicsSomaticMutations.at[idx, 'wt_protein_seq'] = prot_seq_wt
+    OmicsSomaticMutations.at[idx, 'mt_protein_seq'] = prot_seq_mut
+
     """if row["DNAChange"] == "ENST00000486637.2:c.276-1_276insGCT":
       mutant_pos = compare_proteins(prot_seq_wt, prot_seq_mut)
       ter = len(prot_seq_mut) - int(mutant_pos)
@@ -193,7 +201,10 @@ def main():
     
   # mutated_records now holds one SeqRecord per applied variant
   print(f"Generated {len(mutated_records)} mutated sequences")
-
+  
+  # After processing and updating the DataFrame
+  output_path = '/Users/jaimetaitz/Downloads/OmicsSomaticMutations_with_protein_seqs.csv'
+  OmicsSomaticMutations.to_csv(output_path, index=False)
 
   ''' COSMIC DB:
   #cosmic_df = pd.read_csv('/Users/jtaitz/Documents/Honours/datasets/cosmic/Cosmic_MutantCensus_Tsv_v101_GRCh38/Cosmic_MutantCensus_v101_GRCh38.tsv', sep='\t',low_memory=False)
