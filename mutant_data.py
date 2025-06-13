@@ -99,7 +99,7 @@ def main():
 
   # Step 1: load coding sequence data from Ensembl biomart in fasta format
   #fasta_path = '/Users/jaimetaitz/Downloads/mart_export_utr.txt'
-  fasta_path = 'cds_with_3utr.fasta'
+  fasta_path = 'cds_with_utr3.fasta'
   if not os.path.isfile(fasta_path):
     raise FileNotFoundError(f"Could not find {fasta_path}")
 
@@ -201,7 +201,7 @@ def main():
     
   # mutated_records now holds one SeqRecord per applied variant
   print(f"Generated {len(mutated_records)} mutated sequences")
-  
+
   # After processing and updating the DataFrame
   output_path = '/Users/jaimetaitz/Downloads/OmicsSomaticMutations_with_protein_seqs.csv'
   OmicsSomaticMutations.to_csv(output_path, index=False)

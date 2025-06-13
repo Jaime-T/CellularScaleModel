@@ -4,7 +4,7 @@ from Bio.SeqRecord import SeqRecord
 # Define input and output file paths
 cds_fasta = "/Users/jaimetaitz/Downloads/mart_export_coding_seqs.txt"
 full_fasta = "/Users/jaimetaitz/Downloads/mart_export_utr.txt"
-output_fasta = "cds_with_3utr.fasta"
+output_fasta = "cds_with_utr3.fasta"
 
 # Read sequences from both FASTA files into dictionaries
 cds_dict = SeqIO.to_dict(SeqIO.parse(cds_fasta, "fasta"))
