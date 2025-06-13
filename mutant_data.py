@@ -8,6 +8,7 @@ import os, re
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+from test_variant import compare_proteins # 
 
 """ Function: Apply a mutation to a coding nucleotide sequence 
   and return the mutated sequence """
@@ -65,13 +66,33 @@ def make_mutation(seq: str, hgvs: str) -> str:
     a, ins = int(m.group(1)) - 1, m.group(2)
     return seq[:a] + ins + seq[a+1:]
 
+  # case 7) affects splicing site
+  m = re.match(r".+:c\.(\d+)_(\d+)\+1ins([ACGT]+)$", hgvs)
+  if m:
+    a, ins = int(m.group(1)), m.group(3)
+    return seq[:a] + ins + seq[a:]
+
+  m = re.match(r".+:c\.(\d+)-1_(\d+)ins([ACGT]+)$", hgvs)
+  if m:
+    a, ins = int(m.group(1)) - 1, m.group(3)
+    return seq[:a] + ins + seq[a:]
+
   raise ValueError(f"Unsupported HGVS pattern: {hgvs}")
 
 
 """ Function: Translate a coding DNA sequence and return the protein
     up to (but not including) the first stop codon. """
 def translate_until_stop(dna_seq: str) -> str:
-  return str(Seq(dna_seq).translate(to_stop=True))
+  seq_obj = Seq(dna_seq)
+  protein = seq_obj.translate(to_stop=False)
+  
+  if '*' not in protein:
+      return ''
+  # Truncate the protein sequence at the first stop codon
+  truncated_protein = protein.split('*')[0]
+  return str(truncated_protein)
+  #return str(Seq(dna_seq).translate(to_stop=True))
+
 
 
 def main():
@@ -114,10 +135,21 @@ def main():
       continue
     
     hgvs = row["DNAChange"] # where hgvs is the format of the dna change 
-    print('hgvs is:', hgvs)
-    transcript_id = hgvs.split(":", 1)[0]
 
-    wt_seq = str(transcript_dict[transcript_id].seq)
+    # check hgvs is not empty 
+    if isinstance(hgvs, str):
+      transcript_id = hgvs.split(":", 1)[0]
+    else:
+      continue 
+
+    # check transcript seq is in fasta file and dict
+    if transcript_id in transcript_dict:
+      wt_seq = str(transcript_dict[transcript_id].seq)
+      
+    else: 
+      continue 
+
+    # make mutant sequence 
     try:
       mut_seq = make_mutation(wt_seq, hgvs)
     except ValueError as e:
@@ -128,23 +160,37 @@ def main():
     prot_seq_mut = translate_until_stop(mut_seq)
     prot_seq_wt = translate_until_stop(wt_seq)
 
+    # check if sequence exists i.e. there is a stop codon
+    if (len(prot_seq_mut) == 0 or len(prot_seq_wt) == 0):
+      continue
+
     # build a SeqRecord for the mutated CDS
     rec = SeqRecord(
       Seq(mut_seq),
-      id=f"{tid}|{row['HugoSymbol']}|{protein_chg}",
+      id=f"{tid}|{hgvs}|{protein_chg}|{row['HugoSymbol']}",
       description=f"{hgvs}; wt protein up to stop: {prot_seq_wt}; mutant protein up to stop: {prot_seq_mut}"
       )
-    print(rec)
+    
     
     # attach the protein as an annotation if you like
-    rec.annotations["protein"] = prot_seq_mut
+    rec.annotations["mt_protein"] = prot_seq_mut
+    rec.annotations["wt_protein"] = prot_seq_wt
 
     mutated_records.append(rec)
 
-    #if row["DNAChange"] == "ENST00000433179.4:c.2258del":
-    #  break
-    
+    """if row["DNAChange"] == "ENST00000486637.2:c.276-1_276insGCT":
+      mutant_pos = compare_proteins(prot_seq_wt, prot_seq_mut)
+      ter = len(prot_seq_mut) - int(mutant_pos)
+      print('mt length is', len(prot_seq_mut), 'length wt is', len(prot_seq_wt))
+      print('terminates after ', ter, 'amino acids')
+      print('mutant seq', mut_seq)
+      print('wt seq', wt_seq)
+      print("\n")
+      print('wt prot', prot_seq_wt)
+      print('mt prot', prot_seq_mut)
+      break"""
 
+    
   # mutated_records now holds one SeqRecord per applied variant
   print(f"Generated {len(mutated_records)} mutated sequences")
 
