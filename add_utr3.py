@@ -15,16 +15,15 @@ with open(output_fasta, "w") as output_handle:
     for seq_id, cds_record in cds_dict.items():
         cds_seq = cds_record.seq
         
-
         if seq_id in full_dict:
             full_seq = full_dict[seq_id].seq
 
             # Find the position of the CDS within the full transcript
             cds_start = full_seq.find(cds_seq)
             if cds_start == -1:
-                #print(f"Warning: CDS for {seq_id} not found in full transcript. Writing CDS only.")
+                # CDS for {seq_id} not found in full transcript. Writing CDS only
                 combined_seq = cds_seq
-                description = "" #"CDS only (CDS not found in full transcript)"
+                description = "" 
             else:
                 # Calculate the end position of the CDS
                 cds_end = cds_start + len(cds_seq)
@@ -36,9 +35,8 @@ with open(output_fasta, "w") as output_handle:
                 combined_seq = cds_seq + utr3_seq
                 description = "" #"CDS + 3'UTR"
                 
-                
         else:
-            #print(f"Warning: {seq_id} not found in full transcript file. Writing CDS only.")
+            # {seq_id} not found in full transcript file. Writing CDS only
             combined_seq = cds_seq
             description = "" #"CDS only (no full transcript available)"
 
