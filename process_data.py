@@ -4,9 +4,15 @@
 Check the distribution of types of variants of the mutated proteins. 
 Check the distribution of sequence length of mutated proteins and plot graph.
 
+If sequences are longer than 1022 amino acids, randomly select a 
+1022 aa window to include the mutation.
+
+Categorise data into missense and frameshift variants and split into different
+dataframes. Split data into test and train set and save to files in ./data folder.
+
 Note: Change csv path in main() to where mutated data file is saved 
 
-Code inspiration: https://github.com/naity/finetune-esm/blob/main/notebooks/cafa5_train.ipynb
+Code inspiration: https://github.com/naity/finetune-esm/blob/main/notebooks/cafa5_data_processing.ipynb
 """
 import os
 import pandas as pd
