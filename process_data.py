@@ -154,7 +154,7 @@ def main():
     df = filter_empty(df)
 
     # Slide window 
-    window_size = 1024
+    window_size = 1022
     seed = 42
     df = slide_window(df, window_size, seed)
 
