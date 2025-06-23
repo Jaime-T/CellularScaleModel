@@ -5,17 +5,17 @@ Check the distribution of types of variants of the mutated proteins.
 Check the distribution of sequence length of mutated proteins and plot graph.
 
 Note: Change csv path in main() to where mutated data file is saved 
+
+Code inspiration: https://github.com/naity/finetune-esm/blob/main/notebooks/cafa5_train.ipynb
 """
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
-import torch.nn as nn
-from transformers import AutoTokenizer, EsmModel
 import random
 import re
 from sklearn.model_selection import train_test_split
+from pathlib import Path
 
 def analyse(df: object):
     
@@ -126,28 +126,6 @@ def slide_window(df: pd.DataFrame, window_size: int = 1022, seed: int = 42) -> p
     df['windowed_seq'] = windowed_seqs
     return df
 
-def tokenize_seqs(batch, tokenizer, window_size: int = 1022):
-    encoded_seqs = tokenizer(
-        batch['windowed_seq'].tolist(),        
-        padding="max_length",                 
-        truncation=True,
-        max_length=min(window_size, tokenizer.model_max_length),
-        return_tensors="np",  # or "pt" for PyTorch, "tf" for TensorFlow
-    )
-    return dict(
-        input_ids=encoded_seqs["input_ids"],
-        attention_mask=encoded_seqs["attention_mask"],
-    )
-
-def test_token(seq, tokenizer, window_size):
-    encoded_seq = tokenizer([seq], padding="max_length", truncation=True, max_length=min(window_size, tokenizer.model_max_length), return_tensors="np")
-    print(encoded_seq['input_ids'])
-    decode = tokenizer.decode(encoded_seq['input_ids'][0])
-    if (seq == decode):
-        print('success')
-    else:
-        print(f'different: {seq}\n {decode}')
-
 def filter_missense(df: pd.DataFrame):
     return df[df['VariantInfo'].str.contains('missense_variant', na=False)]
 
@@ -164,7 +142,7 @@ def main():
     print(f"\nLoaded {len(df):,} records from {csv_path}")
 
     # Data Analysis 
-    #analyse(df)
+    analyse(df)
 
     # Data Filtering
     df = filter_empty(df)
@@ -175,31 +153,29 @@ def main():
     df = slide_window(df, window_size, seed)
 
     # Filter df by the variant type: missense and frameshift 
-    missense_df = filter_missense(df) # 57763 entries
-    frameshift_df = filter_frameshift(df) # 9246 entries
+    ms_df = filter_missense(df) # 57763 entries
+    fs_df = filter_frameshift(df) # 9246 entries
 
-    exit()
+    # Split data into train and test set (holdout test set)
 
+    test_size = 0.2
+    ms_train_df, ms_test_df = train_test_split(ms_df, test_size=test_size, random_state=0)
+    fs_train_df, fs_test_df = train_test_split(fs_df, test_size=test_size, random_state=0)
 
-    # Split into training and test set 
-    valid_size = 0.25  # 0.8*0.25=0.2
-    train_df, valid_df = train_test_split(df, test_size=valid_size, random_state=0)
-    train_df.shape, valid_df.shape
+    # Save to file
+        # Set data_path to a folder named 'data' in the current working directory
+    data_path = Path.cwd() / "data"
+
+        # Create the folder if it doesn't exist
+    data_path.mkdir(parents=True, exist_ok=True)
     
-    # https://github.com/naity/finetune-esm/blob/main/notebooks/cafa5_train.ipynb
-    # Load Tokeniser
-    model_name = "facebook/esm2_t6_8M_UR50D"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    df.to_parquet(data_path / "processed_data.parquet")
 
-    # Tokenize all sequences in the "windowed_seq" column
-    tokenized = tokenize_seqs(df, tokenizer, window_size)
+    ms_train_df.to_parquet(data_path / "ms_train_split.parquet")
+    ms_test_df.to_parquet(data_path / "ms_test_split.parquet")
 
-    input_ids = tokenized["input_ids"]
-    attention_masks = tokenized["attention_mask"]
-
-    #df['input_ids'] = list(input_ids)
-    #df['attention_mask'] = list(attention_mask)
-    #print(df.head(10))
+    fs_train_df.to_parquet(data_path / "fs_train_split.parquet")
+    fs_test_df.to_parquet(data_path / "fs_test_split.parquet")
 
 
 if __name__ == '__main__':
