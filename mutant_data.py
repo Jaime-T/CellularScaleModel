@@ -94,7 +94,6 @@ def translate_until_stop(dna_seq: str) -> str:
   #return str(Seq(dna_seq).translate(to_stop=True))
 
 
-
 def main():
 
   # Step 1: load coding sequence data from Ensembl biomart in fasta format
@@ -118,7 +117,6 @@ def main():
     rec.id = tid
     rec.description = ""
     transcript_dict[tid] = rec
-
 
   # Step 2: load depmap mutation data from local file
   OmicsSomaticMutations = pd.read_csv('/Users/jaimetaitz/Downloads/OmicsSomaticMutations.csv', sep=',', low_memory=False)
@@ -171,10 +169,9 @@ def main():
     # build a SeqRecord for the mutated CDS
     rec = SeqRecord(
       Seq(mut_seq),
-      id=f"{tid}|{hgvs}|{protein_chg}|{row['HugoSymbol']}",
+      id=f"{tid}|{hgvs}|{protein_chg}|{row['HugoSymbol']}|{row['VariantType']}",
       description=f"{hgvs}; wt protein up to stop: {prot_seq_wt}; mutant protein up to stop: {prot_seq_mut}"
       )
-    
     
     # attach the protein as an annotation if you like
     rec.annotations["mt_protein"] = prot_seq_mut
@@ -198,7 +195,6 @@ def main():
       print('mt prot', prot_seq_mut)
       break"""
 
-    
   # mutated_records now holds one SeqRecord per applied variant
   print(f"Generated {len(mutated_records)} mutated sequences")
 
