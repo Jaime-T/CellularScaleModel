@@ -18,9 +18,30 @@ from pathlib import Path
 from sklearn.model_selection import train_test_split
 import torch
 import torch.nn as nn
-from transformers import AutoTokenizer, EsmModel
-from transformers import AutoTokenizer, AutoModelForMaskedLM
+import torch.optim as optim
+from transformers import AutoTokenizer, EsmModel, AutoModelForMaskedLM
+from transformers import EsmForMaskedLM, EsmTokenizer 
 import random
+from peft import get_peft_model, LoraConfig, TaskType
+from torch.optim import AdamW
+from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm
+
+class RayTorchDataset(Dataset):
+    def __init__(self, ray_dataset):
+        self.data = ray_dataset.to_pandas()
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        row = self.data.iloc[idx]
+        return {
+            "input_ids": torch.tensor(row["input_ids"], dtype=torch.long),
+            "attention_mask": torch.tensor(row["attention_mask"], dtype=torch.long),
+            "labels": torch.tensor(row["labels"], dtype=torch.long),
+        }
+
 
 def tokenize_seqs(batch, tokenizer, window_size: int = 1022):
     encoded_seqs = tokenizer(
@@ -57,7 +78,7 @@ def mask_input_ids(input_ids, tokenizer, mlm_probability=0.15):
     return input_ids, labels
 
 def tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022, mlm_probability: float = 0.15):
-    # 1. Tokenize the batch
+    # Tokenize the batch
     encoded_seqs = tokenizer(
         batch['windowed_seq'].tolist(),
         padding="max_length",
@@ -69,41 +90,92 @@ def tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022, mlm_probab
     input_ids = encoded_seqs["input_ids"]
     attention_mask = encoded_seqs["attention_mask"]
 
-    # 2. Clone to create labels
-    labels = input_ids.clone()
+    # Clone to create targets
+    targets = input_ids.clone()
 
-    # 3. Create probability mask (randomly choose tokens to mask)
-    probability_matrix = torch.full(labels.shape, mlm_probability)
+    # Create probability mask (randomly choose tokens to mask)
+    probability_matrix = torch.full(targets.shape, mlm_probability)
     special_tokens_mask = [
         tokenizer.get_special_tokens_mask(val, already_has_special_tokens=True)
-        for val in labels.tolist()
+        for val in targets.tolist()
     ]
     special_tokens_mask = torch.tensor(special_tokens_mask, dtype=torch.bool)
     probability_matrix.masked_fill_(special_tokens_mask, value=0.0)
 
-    # 4. Sample masked indices
+    # Sample masked indices
     masked_indices = torch.bernoulli(probability_matrix).bool()
 
-    # 5. Replace selected input_ids with [MASK] token
+    # Replace selected input_ids with [MASK] token
     input_ids[masked_indices] = tokenizer.mask_token_id
 
-    # 6. Only keep labels for masked tokens
-    labels[~masked_indices] = -100
+    # Only keep targets for masked tokens
+    targets[~masked_indices] = -100
 
-    # 7. Return everything as numpy (optional, depending on downstream)
+    # Return everything as numpy (optional, depending on downstream)
     return dict(
         input_ids=input_ids.numpy(),
         attention_mask=attention_mask.numpy(),
-        labels=labels.numpy()
+        labels=targets.numpy()
     )
 
-def main():
+def set_seeds(seed=42):
+    """Set seeds for reproducibility."""
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    os.environ["PYTHONHASHSEED"] = str(seed)
 
-    # set up Ray, a distributed computing framework
+def train(model, train_loader, val_loader, epochs=3, lr=5e-5, device="cuda" if torch.cuda.is_available() else "cpu"):
+    model.to(device)
+    optimizer = AdamW(model.parameters(), lr=lr)
+
+    for epoch in range(epochs):
+        model.train()
+        total_loss = 0
+        for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}"):
+            batch = {k: v.to(device) for k, v in batch.items()}
+            outputs = model(**batch)
+            loss = outputs.loss
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+            total_loss += loss.item()
+
+        avg_loss = total_loss / len(train_loader)
+        print(f"Epoch {epoch+1} training loss: {avg_loss:.4f}")
+
+        # Optional: Add validation loss
+        if val_loader:
+            evaluate(model, val_loader, device)
+
+def evaluate(model, val_loader, device):
+    model.eval()
+    total_loss = 0
+    with torch.no_grad():
+        for batch in val_loader:
+            batch = {k: v.to(device) for k, v in batch.items()}
+            outputs = model(**batch)
+            total_loss += outputs.loss.item()
+    avg_loss = total_loss / len(val_loader)
+    print(f"Validation loss: {avg_loss:.4f}")
+
+def main():
+    # Set reproducibility 
+    set_seeds(0)
+
+    # Initialise Ray, a distributed computing framework
     if ray.is_initialized():
         ray.shutdown()
     ray.init()
-    print(ray.cluster_resources())
+    #print(ray.cluster_resources())
+
+    # Set ray to be deterministic 
+    ray.data.DatasetContext.get_current().execution_options.preserve_order = (
+        True  
+    )
 
     num_workers = 1
     num_devices = 1
@@ -114,26 +186,24 @@ def main():
     ms_df = pd.read_parquet(data_path / "ms_train_split.parquet")
     fs_df = pd.read_parquet(data_path / "fs_train_split.parquet")
 
-    # Split Data 
-        # create a validation set which is 0.8*0.25 = 0.2 of whole dataset
+    # Split Data (80% train, 20% validate)
     valid_size = 0.25  
     ms_train_df, ms_valid_df = train_test_split(ms_df, test_size=valid_size, random_state=0)
     fs_train_df, fs_valid_df = train_test_split(fs_df, test_size=valid_size, random_state=0)
 
-    # Data Processing - Load Tokeniser and Model
+    # Load Tokeniser and Model
     model_name = "facebook/esm2_t6_8M_UR50D"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForMaskedLM.from_pretrained(model_name)
+    tokenizer = EsmTokenizer.from_pretrained(model_name)
+    model = EsmForMaskedLM.from_pretrained(model_name)
+    model.eval()  
 
-    # Tokenize all sequences in the "windowed_seq" column
     window_size = 1022
 
-    # Use new function combine tokenise and mask:
-        # Use Ray DataFrame for batch processing
+    # Convert DataFrames to Ray for batch processing
     ms_ray_ds = ray.data.from_pandas(ms_train_df)
     fs_ray_ds = ray.data.from_pandas(fs_train_df)
 
-    #    Apply your combined tokenization + masking function
+    # Tokenize and mask 
     ms_ray_ds = ms_ray_ds.map_batches(
         lambda batch: tokenize_and_mask_seqs(batch, tokenizer, window_size),
         batch_format="pandas"
@@ -143,52 +213,80 @@ def main():
         lambda batch: tokenize_and_mask_seqs(batch, tokenizer, window_size),
         batch_format="pandas"
     )
-        
+
+    
+    # Convert Ray Datasets to PyTorch Datasets
+    ms_train_dataset = RayTorchDataset(ms_ray_ds)
+    fs_train_dataset = RayTorchDataset(fs_ray_ds)
+
+    # Create DataLoaders
+    batch_size = 8
+    ms_loader = DataLoader(ms_train_dataset, batch_size=batch_size, shuffle=True)
+    fs_loader = DataLoader(fs_train_dataset, batch_size=batch_size, shuffle=True)
+
+    # Train on one dataset for now (e.g. ms)
+    train(model, ms_loader, val_loader=None, epochs=3)
 
 
     exit()
-    ms_tokenized = tokenize_seqs(ms_train_df, tokenizer, window_size)
-    fs_tokenized = tokenize_seqs(fs_train_df, tokenizer, window_size)
 
-    # Mask amino acid tokens for masked language modelling (MLM)
-    ms_input_ids = ms_tokenized["input_ids"]
-    ms_masked_input_ids, ms_labels = mask_input_ids(ms_input_ids, tokenizer)
-    
-    print("masked input ids:\n", ms_masked_input_ids[0])
-    print("labels:\n", ms_labels[0])
-    #print("decoded masked seqs:\n")
-    #print(tokenizer.batch_decode(ms_masked_input_ids, skip_special_tokens=False))
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)  
 
-    
-
-    # Distributed Processing, ray dataset wraps batches 
-    ray.data.DatasetContext.get_current().execution_options.preserve_order = (
-        True  # deterministic
+    # Set up LoRA
+    lora_config = LoraConfig(
+        r=4,
+        lora_alpha=8,
+        target_modules=["query"],  # PEFT will insert LoRA into matching linear layers
+        lora_dropout=0.0,
+        bias="none",
+        task_type=TaskType.TOKEN_CLS,  # Best fit for masked token modelling
     )
 
-    ms_ds = ray.data.read_parquet(data_path / "ms_train_split.parquet")
-    ms_ds = ms_ds.random_shuffle(seed=0)
-    
-    fs_ds = ray.data.read_parquet(data_path / "fs_train_split.parquet")
-    fs_ds = fs_ds.random_shuffle(seed=0)
+    model = get_peft_model(model, lora_config)
+    model.print_trainable_parameters()
 
-    test_size = 0.25
-    train_ds, val_ds = ds.train_test_split(test_size=test_size)
 
+    wildtype = ["MKTFFVAGV<mask>AGK", "GV<mask>AGK"]  # Random dummy sequence with one mask
+    inputs = tokenizer(wildtype, padding=True, truncation=True, return_tensors="pt")
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+
+    # optimiser  setup
+    lora_params = [p for n, p in model.named_parameters() if p.requires_grad]
+    optimizer = optim.Adam(lora_params, lr=1e-3)
 
     # Train model on masked tokens, predict original tokens
+    # Training loop
+    model.train()
+    for epoch in range(5):
+        optimizer.zero_grad()
+        outputs = model(**inputs)
+        logits = outputs.logits
+        mask_token_index = (inputs["input_ids"] == tokenizer.mask_token_id).nonzero(as_tuple=True)
+        prediction = logits[mask_token_index]
+        target_id = tokenizer.convert_tokens_to_ids("G")  # Assume we want 'G' at <mask>
+        loss = nn.CrossEntropyLoss()(prediction, torch.tensor([target_id], device=device))
+        loss.backward()
+        optimizer.step()
+        print(f"Epoch {epoch + 1}: Loss = {loss.item():.4f}")
+
+    model.eval()
+    with torch.no_grad():
+        outputs = model(**inputs)
+        logits = outputs.logits
+        mask_token_index = (inputs["input_ids"] == tokenizer.mask_token_id).nonzero(as_tuple=True)
+        prediction = logits[mask_token_index]
+        probs = torch.softmax(prediction, dim=-1)
+        topk = torch.topk(probs, k=5, dim=-1)
+        top_tokens = tokenizer.convert_ids_to_tokens(topk.indices[0].tolist())
+        print("Top predictions at <mask>:", top_tokens)
 
 
+    
+
+    
 
 
-
-    #ms_input_ids = ms_tokenized["input_ids"]
-    #ms_attention_masks = ms_tokenized["attention_mask"]
-
-
-    #df['input_ids'] = list(input_ids)
-    #df['attention_mask'] = list(attention_mask)
-    #print(df.head(10))
 
 if __name__ == '__main__':
     main()
