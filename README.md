@@ -1,13 +1,16 @@
 # CellularScaleModel
 Honours project 
 
-Instructions to input into terminal
+Instructions for environment creation/package mngement:
 
-To install dependencies, run: 
-    ~ pip install -r requirements.txt
+    mamba:
+        ~ mamba env create -f environment.yaml
+        ~ mamba activate csm
 
-To activate virtual environment, run:
-    ~ source csm_venv/bin/activate
+    pip:
+        ~ source csm_venv/bin/activate
+        ~ pip install -r requirements.txt
+
 
 To run the program, run:
-    ~ python3 mutant_data.py
+    ~ python3 file_name.py
