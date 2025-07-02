@@ -1,0 +1,30 @@
+name: csm
+channels:
+  - conda-forge
+  - pytorch
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.12
+  - biopython=1.85
+  - biothings_client=0.4.1
+  - fair-esm=2.0.0
+  - matplotlib=3.10.1
+  - numpy=2.3.0
+  - pandas=2.3.0
+  - peft=0.15.2
+  - pyarrow=20.0.0
+  - pytorch=2.7.1
+  - ray-all=2.47.1
+  - scikit-learn=1.7.0
+  - scipy=1.15.2
+  - seaborn=0.13.2
+  - tokenizers=0.21.1
+  - tqdm=4.67.1
+  - transformers=4.52.4
+  - pip
+  - pip:
+    - bio==1.8.0
+
+
+
