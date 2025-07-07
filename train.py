@@ -42,41 +42,6 @@ class RayTorchDataset(Dataset):
             "labels": torch.tensor(row["labels"], dtype=torch.long),
         }
 
-
-def tokenize_seqs(batch, tokenizer, window_size: int = 1022):
-    encoded_seqs = tokenizer(
-        batch['windowed_seq'].tolist(),        
-        padding="max_length",                 
-        truncation=True,
-        max_length=min(window_size, tokenizer.model_max_length),
-        return_tensors="np",  # or "pt" for PyTorch, "tf" for TensorFlow
-    )
-    return dict(
-        input_ids=encoded_seqs["input_ids"],
-        attention_mask=encoded_seqs["attention_mask"],
-    )
-
-def mask_input_ids(input_ids, tokenizer, mlm_probability=0.15):
-    labels = input_ids.copy()
-
-    # Create a mask of which tokens to mask
-    probability_matrix = torch.full(labels.shape, mlm_probability)
-    special_tokens_mask = [
-        tokenizer.get_special_tokens_mask(val, already_has_special_tokens=True)
-        for val in labels.tolist()
-    ]
-    special_tokens_mask = torch.tensor(special_tokens_mask, dtype=torch.bool)
-    probability_matrix.masked_fill_(special_tokens_mask, value=0.0)
-    masked_indices = torch.bernoulli(probability_matrix).bool()
-
-    # Replace selected tokens with the mask token
-    input_ids[masked_indices] = tokenizer.mask_token_id
-
-    # Only compute loss on masked tokens
-    labels[~masked_indices] = -100
-
-    return input_ids, labels
-
 def tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022, mlm_probability: float = 0.15):
     # Tokenize the batch
     encoded_seqs = tokenizer(
@@ -128,30 +93,6 @@ def set_seeds(seed=42):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     os.environ["PYTHONHASHSEED"] = str(seed)
-
-def train(model, train_loader, val_loader, epochs=3, lr=5e-5, device="cuda" if torch.cuda.is_available() else "cpu"):
-    model.to(device)
-    optimizer = AdamW(model.parameters(), lr=lr)
-
-    for epoch in range(epochs):
-        model.train()
-        total_loss = 0
-        for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}"):
-            batch = {k: v.to(device) for k, v in batch.items()}
-            outputs = model(**batch)
-            loss = outputs.loss
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-            total_loss += loss.item()
-
-        avg_loss = total_loss / len(train_loader)
-        print(f"Epoch {epoch+1} training loss: {avg_loss:.4f}")
-
-        # Optional: Add validation loss
-        if val_loader:
-            evaluate(model, val_loader, device)
-
 
 def evaluate(model, val_loader, device):
     model.eval()
