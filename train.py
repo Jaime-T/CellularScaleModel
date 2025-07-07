@@ -209,7 +209,7 @@ def main():
         target_modules=["query"],  # PEFT will insert LoRA into matching linear layers
         lora_dropout=0.0,
         bias="none",
-        task_type=TaskType.TOKEN_CLS,  # Best fit for masked token modelling
+        task_type=TaskType.SEQ_2_SEQ_LM,   # ! Changed from TOKEN_CLS !
     )
 
     print('\n\nstarting training!')
