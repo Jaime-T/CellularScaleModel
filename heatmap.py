@@ -49,7 +49,7 @@ def generate_heatmap(protein_sequence, model, tokenizer, start_pos=1, end_pos=No
 
 def plot_heatmap(data, title, sequence, amino_acids, start_pos=1):
     plt.figure(figsize=(15, 5))
-    plt.imshow(data, cmap="bwr" if "Difference" in title else "viridis", aspect="auto", vmin=None, vmax=None)
+    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis", aspect="auto", vmin=None, vmax=None)
     plt.xticks(range(len(sequence)), list(sequence))
     plt.yticks(range(20), amino_acids)
     plt.xlabel("Position in Protein Sequence")
@@ -58,7 +58,7 @@ def plot_heatmap(data, title, sequence, amino_acids, start_pos=1):
     plt.colorbar(label="Log Likelihood Ratio (LLR)")
     plt.tight_layout()
     
-    plt.savefig(f"heatmaps/myc/{title.replace(' ', '_')}.png", dpi=300)
+    plt.savefig(f"heatmaps/missense_tst/{title.replace(' ', '_')}.png", dpi=300)
 
 def topk_predictions(model, tokenizer, protein_seq, masked_pos, k=5):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -101,8 +101,10 @@ def main():
     base_tokenizer = EsmTokenizer.from_pretrained(base_model_name)
     base_model = EsmForMaskedLM.from_pretrained(base_model_name)
 
-    #sequence = "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQ"
-    sequence = "QQSELQPPAPSEDIWKKFELLPTPPLSPSRRSGLCSPSYVAVTPFSLRGD"
+    #sequence = "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQ" random
+    #sequence = "QQSELQPPAPSEDIWKKFELLPTPPLSPSRRSGLCSPSYVAVTPFSLRGD" 51-100 
+    #sequence = "MDFFRVVENQQPPATMPLNVSFTNRNYDLDYDSVQPYFYCDEEENFYQQQQQSELQPPAPSEDIWKKFELLPTPPLSPSRRSGLCSPSYVAVTPFSLRGDNDGGGGSFSTADQLEMVTELLGGDMVNQSFICDPDDETFIKNIIIQDCMWSGFSAAAKLVSEKLASYQAARKDSGSPNPARGHSVCSTSSLYLQDLSAAASECIDPSVVFPYPLNDSSSPKSCASQDSSAFSPSSDSLLSSTESSPQGSPEPLVLHEETPPTTSSDSEEEQEDEEEIDVVSVEKRQAPGKRSESGSPSAGGHSKPPHSPLVLKRCHVSTHQHNYAAPPSTRKDYPAAKRVKLDSVRVLRQISNNRKCTSPRSSDTEENVKRRTHNVLERQRRNELKRSFFALRDQIPELENNEKAPKVVILKKATAYILSVQAEEQKLISEEDLLRKRREQLKHKLEQLR" # myc
+    sequence = "MPAVKKEFPGREDLALALATFHPTLAALPLPPLPGYLAPLPAAAALPPAASLPASAAGYEALLAPPLRPPRAYLSLHEAAPHLHLPRDPLALERFSATAAAAPDFQPLLDNGEPCIEVECGANRALLYVRKLCQGSKGPSIRHRGEWLTPNEFQFVSGRETAKDWKRSIRHKGKSLKTLMSKGILQVHPPICDCPGCRISSPVNRGRLADKRTVALPAARNLKKERTPSFSASDGDSDGSGPTCGRRPGLKQEDGPHIRIMKRRVHTHWDVNISFREASCSQDGNLPTLISSVHRSRHLVMPEHQSRCEFQRGSLEIGLRPAGDLLGKRLGRSPRISSDCFSEKRARSESPQEALLLPRELGPSMAPEDHYRRLVSALSEASTFEDPQRLYHLGLPSHDLLRVRQEVAAAALRGPSGLEAHLPSSTAGQRRKQGLAQHREGAAPAAAPSFSERELPQPPPLLSPQNAPHVALGPHLRPPFLGVPSALCQTPGYGFLPPAQAEMFAWQQELLRKQNLARLELPADLLRQKELESARPQLLAPETALRPNDGAEELQRRGALLVLNHGAAPLLALPPQGPPGSGPPTPSRDSARRAPRKGGPGPASARPSESKEMTGARLWAQDGSEDEPPKDSDGEDPETAAVGCRGPTPGQAPAGGAGAEGKGLFPGSTLPLGFPYAVSPYFHTGAVGGLSMDGEEAPAPEDVTKWTVDDVCSFVGGLSGCGEYTRVFREQGIDGETLPLLTEEHLLTNMGLKLGPALKIRAQVARRLGRVFYVASFPVALPLQPPTLRAPERELGTGEQPLSPTTATSPYGGGHALAGQTSPKQENGTLALLPGAPDPSQPLC"
 
     # Generate
     base_heatmap, amino_acids = generate_heatmap(sequence, base_model, base_tokenizer)
@@ -120,12 +122,11 @@ def main():
     plot_heatmap(fs_diff_heatmap, "Difference (Fine-tuned Frameshift - Original)", sequence, amino_acids)
 
     # Comapre amino acid predictions
-    protein_seq = "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQ"
-    masked_pos = 10
+    masked_pos = 27
 
-    original_preds = topk_predictions(base_model, base_tokenizer, protein_seq, masked_pos)
-    ms_preds = topk_predictions(ms_model, ms_tokenizer, protein_seq, masked_pos)
-    fs_preds = topk_predictions(fs_model, ms_tokenizer, protein_seq, masked_pos)
+    original_preds = topk_predictions(base_model, base_tokenizer, sequence, masked_pos)
+    ms_preds = topk_predictions(ms_model, ms_tokenizer, sequence, masked_pos)
+    fs_preds = topk_predictions(fs_model, ms_tokenizer, sequence, masked_pos)
 
     print("Original model top predictions:", original_preds)
     print("Fine-tuned missense model top predictions:", ms_preds)
