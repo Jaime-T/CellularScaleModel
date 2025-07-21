@@ -9,8 +9,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from transformers import AutoTokenizer, EsmModel, AutoModelForMaskedLM
-from transformers import EsmForMaskedLM, EsmTokenizer, AutoModel
+from transformers import EsmForMaskedLM, EsmTokenizer
 
 def generate_heatmap(protein_sequence, model, tokenizer, start_pos=1, end_pos=None):
     model.eval()
@@ -46,18 +45,26 @@ def generate_heatmap(protein_sequence, model, tokenizer, start_pos=1, end_pos=No
 
     return heatmap, amino_acids
 
-def plot_heatmap(gene, data, title, sequence, amino_acids, start_pos=1):
+def plot_heatmap(params, gene, data, title, sequence, amino_acids, start_pos=1):
     plt.figure(figsize=(20, 5))
     plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto", vmin=None, vmax=None)
     plt.xticks(range(len(sequence)), list(sequence))
     plt.yticks(range(20), amino_acids)
     plt.xlabel("Position in Protein Sequence")
     plt.ylabel("Amino Acid Mutations")
-    plt.title(title)
+    plt.title(title + ' ' + params + 'M')
     plt.colorbar(label="Log Likelihood Ratio (LLR)")
     plt.tight_layout()
     
-    plt.savefig(f"heatmaps/{gene}/{title.replace(' ', '_')}.png", dpi=300) 
+    # Define the path
+    save_path = f"heatmaps/{params}M_model/{gene}/{title.replace(' ', '_')}.png"
+    folder = os.path.dirname(save_path)
+
+    # Create the directory if it doesn't exist
+    os.makedirs(folder, exist_ok=True)
+
+    # Save the figure
+    plt.savefig(save_path, dpi=300)
 
 def topk_predictions(model, tokenizer, protein_seq, masked_pos, k=5):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -82,31 +89,39 @@ def topk_predictions(model, tokenizer, protein_seq, masked_pos, k=5):
 
     return list(zip(top_tokens, top_probs))
 
+MODEL_MAP = {
+    8:   "facebook/esm2_t6_8M_UR50D",
+    35:  "facebook/esm2_t12_35M_UR50D",
+    150: "facebook/esm2_t30_150M_UR50D",
+    650: "facebook/esm2_t33_650M_UR50D",
+}
 
 def main():
 
+    # Model Parameters (in millions) of finetuned model
+    params = 35
+
+    # Sequence and gene of interest 
+    sequence = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD"
+    gene = "tp53"
+
+    # myc seq
+    #sequence = "MDFFRVVENQQPPATMPLNVSFTNRNYDLDYDSVQPYFYCDEEENFYQQQQQSELQPPAPSEDIWKKFELLPTPPLSPSRRSGLCSPSYVAVTPFSLRGDNDGGGGSFSTADQLEMVTELLGGDMVNQSFICDPDDETFIKNIIIQDCMWSGFSAAAKLVSEKLASYQAARKDSGSPNPARGHSVCSTSSLYLQDLSAAASECIDPSVVFPYPLNDSSSPKSCASQDSSAFSPSSDSLLSSTESSPQGSPEPLVLHEETPPTTSSDSEEEQEDEEEIDVVSVEKRQAPGKRSESGSPSAGGHSKPPHSPLVLKRCHVSTHQHNYAAPPSTRKDYPAAKRVKLDSVRVLRQISNNRKCTSPRSSDTEENVKRRTHNVLERQRRNELKRSFFALRDQIPELENNEKAPKVVILKKATAYILSVQAEEQKLISEEDLLRKRREQLKHKLEQLRNSCA"
+
     # Load original ESM-2 model
-    #base_model_name = "facebook/esm2_t33_650M_UR50D"
-    base_model_name = "facebook/esm2_t6_8M_UR50D"
+    base_model_name = "facebook/esm2_t33_650M_UR50D"
     base_tokenizer = EsmTokenizer.from_pretrained(base_model_name)
     base_model = EsmForMaskedLM.from_pretrained(base_model_name)
-    #base_model, base_tokenizer = esm.pretrained.esm2_t33_650M_UR50D()
 
     # Load missense fine-tuned model
-    ms_model_path = "./train_8M/model_missense"
+    ms_model_path = f"./train_{params}M/model_missense"
     ms_tokenizer = EsmTokenizer.from_pretrained(ms_model_path)
     ms_model = EsmForMaskedLM.from_pretrained(ms_model_path)
 
     # Load frameshift fine-tuned model
-    fs_model_path = "./train_8M/model_frameshift"
+    fs_model_path = f"./train_{params}M/model_frameshift"
     fs_tokenizer = EsmTokenizer.from_pretrained(fs_model_path)
     fs_model = EsmForMaskedLM.from_pretrained(fs_model_path)
-
-    # myc seq
-    sequence = "MDFFRVVENQQPPATMPLNVSFTNRNYDLDYDSVQPYFYCDEEENFYQQQQQSELQPPAPSEDIWKKFELLPTPPLSPSRRSGLCSPSYVAVTPFSLRGDNDGGGGSFSTADQLEMVTELLGGDMVNQSFICDPDDETFIKNIIIQDCMWSGFSAAAKLVSEKLASYQAARKDSGSPNPARGHSVCSTSSLYLQDLSAAASECIDPSVVFPYPLNDSSSPKSCASQDSSAFSPSSDSLLSSTESSPQGSPEPLVLHEETPPTTSSDSEEEQEDEEEIDVVSVEKRQAPGKRSESGSPSAGGHSKPPHSPLVLKRCHVSTHQHNYAAPPSTRKDYPAAKRVKLDSVRVLRQISNNRKCTSPRSSDTEENVKRRTHNVLERQRRNELKRSFFALRDQIPELENNEKAPKVVILKKATAYILSVQAEEQKLISEEDLLRKRREQLKHKLEQLRNSCA"
-    # tp53 seq
-    sequence = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD"
-    gene = 'tp53'
 
     # Generate heatmaps
     base_heatmap, amino_acids = generate_heatmap(sequence, base_model, base_tokenizer)
@@ -117,13 +132,13 @@ def main():
     ms_diff_heatmap = ms_heatmap - base_heatmap
     fs_diff_heatmap = fs_heatmap - base_heatmap
 
-    plot_heatmap(gene, base_heatmap, "Original ESM2 Model (LLRs)", sequence, amino_acids)
-    plot_heatmap(gene, ms_heatmap, "Fine-tuned Missense Model (LLRs)", sequence, amino_acids)
-    plot_heatmap(gene, fs_heatmap, "Fine-tuned Frameshift Model (LLRs)", sequence, amino_acids)
-    plot_heatmap(gene, ms_diff_heatmap, "Difference (Fine-tuned Missense - Original)", sequence, amino_acids)
-    plot_heatmap(gene, fs_diff_heatmap, "Difference (Fine-tuned Frameshift - Original)", sequence, amino_acids)
+    plot_heatmap(params, gene, base_heatmap, "Original ESM2 Model (LLRs)", sequence, amino_acids)
+    plot_heatmap(params, gene, ms_heatmap, "Fine-tuned Missense Model (LLRs)", sequence, amino_acids)
+    plot_heatmap(params, gene, fs_heatmap, "Fine-tuned Frameshift Model (LLRs)", sequence, amino_acids)
+    plot_heatmap(params, gene, ms_diff_heatmap, "Difference (Fine-tuned Missense - Original)", sequence, amino_acids)
+    plot_heatmap(params, gene, fs_diff_heatmap, "Difference (Fine-tuned Frameshift - Original)", sequence, amino_acids)
 
-    # Comapre amino acid predictions
+    # Compare amino acid predictions
     masked_pos = 27
 
     original_preds = topk_predictions(base_model, base_tokenizer, sequence, masked_pos)
