@@ -26,6 +26,7 @@ from peft import get_peft_model, LoraConfig, TaskType
 from torch.optim import AdamW
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
+import torch.nn.functional as F
 
 class RayTorchDataset(Dataset):
     def __init__(self, ray_dataset):
@@ -40,6 +41,24 @@ class RayTorchDataset(Dataset):
             "input_ids": torch.tensor(row["input_ids"], dtype=torch.long),
             "attention_mask": torch.tensor(row["attention_mask"], dtype=torch.long),
             "labels": torch.tensor(row["labels"], dtype=torch.long),
+        }
+class TorchDataset(Dataset):
+    def __init__(self, data):
+        """
+        data: can be a pandas DataFrame or a dictionary of lists
+        """
+        if hasattr(data, "to_dict"):  # Convert DataFrame to dict
+            data = data.to_dict(orient="list")
+        self.data = data
+
+    def __len__(self):
+        # Return number of samples
+        return len(self.data["input_ids"])
+
+    def __getitem__(self, idx):
+        # Return one sample as a dictionary of tensors
+        return {
+            key: torch.tensor(self.data[key][idx]) for key in self.data
         }
 
 def tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022, mlm_probability: float = 0.15):
@@ -105,24 +124,53 @@ def evaluate(model, val_loader, device):
     avg_loss = total_loss / len(val_loader)
     print(f"Validation loss: {avg_loss:.4f}")
 
-def get_base_model():
-    model_name = "facebook/esm2_t6_8M_UR50D"
+MODEL_MAP = {
+    8:   "facebook/esm2_t6_8M_UR50D",
+    35:  "facebook/esm2_t12_35M_UR50D",
+    150: "facebook/esm2_t30_150M_UR50D",
+    650: "facebook/esm2_t33_650M_UR50D",
+}
+
+def get_base_model(num_params_millions: int):
+    try:
+        model_name = MODEL_MAP[num_params_millions]
+    except KeyError:
+        raise ValueError(
+            f"Unknown model size {num_params_millions}M. "
+            f"Available options: {list(MODEL_MAP.keys())}"
+        )
+
     model = EsmForMaskedLM.from_pretrained(model_name)
     tokenizer = EsmTokenizer.from_pretrained(model_name)
     return model, tokenizer
 
-@ray.remote(num_cpus=8, num_gpus=1)
-def train_model(model_name, train_dataset, lora_config, batch_size, epochs=3, lr=5e-5):
+def plot_loss(loss_values, model_name, params_millions):
+    plt.figure(figsize=(8, 5))
+    plt.plot(range(1, len(loss_values) + 1), loss_values, marker='o', label='LOSS')
+    plt.title(f'Loss vs Epochs for {model_name}')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"./train_{params_millions}M/{model_name}_loss_plot.png", dpi=300)
+    plt.close()
+
+# @ray.remote(num_cpus=8, num_gpus=1)
+def train_model(model_name, params_millions, train_dataset, lora_config, batch_size, epochs=5, lr=5e-5):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Re-initialize model and tokenizer inside the remote function
-    model, tokenizer = get_base_model()
+    model, tokenizer = get_base_model(params_millions)
     model = get_peft_model(model, lora_config)
     model.to(device)
 
     optimizer = AdamW(model.parameters(), lr=lr)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    print("Batches per epoch:", len(train_loader))
+
+    loss_per_epoch = []
 
     for epoch in range(epochs):
         model.train()
@@ -138,13 +186,20 @@ def train_model(model_name, train_dataset, lora_config, batch_size, epochs=3, lr
 
         avg_loss = total_loss / len(train_loader)
         print(f"[{model_name}] Epoch {epoch+1} training loss: {avg_loss:.4f}")
+        loss_per_epoch.append(avg_loss)
 
     # Save model
+    print("Merging and saving model...")
     model = model.merge_and_unload()
-    model.save_pretrained(f"./train/{model_name}")
-    tokenizer.save_pretrained(f"./train/{model_name}")
+    model.save_pretrained(f"./train_{params_millions}M/{model_name}")
+    tokenizer.save_pretrained(f"./train_{params_millions}M/{model_name}")
+    print(f"Saved model and tokenizer to ./train_{params_millions}M/{model_name}")
+
+    # Plot and save loss plot
+    plot_loss(loss_per_epoch, model_name, params_millions)
 
     return f"{model_name} training complete"
+
 
 
 def main():
@@ -157,7 +212,9 @@ def main():
     resources_per_worker = {"CPU": 8, "GPU": 1 } 
     batch_size = 8
     window_size = 1022
+    model_params_millions = 35
 
+    ''' 
     # Initialise Ray, a distributed computing framework
     if ray.is_initialized():
         ray.shutdown()
@@ -171,6 +228,7 @@ def main():
     ray.data.DatasetContext.get_current().execution_options.preserve_order = (
         True  
     )
+    '''
 
     # Load data
     data_path = Path("./data")
@@ -182,7 +240,7 @@ def main():
     ms_train_df, ms_valid_df = train_test_split(ms_df, test_size=valid_size, random_state=0)
     fs_train_df, fs_valid_df = train_test_split(fs_df, test_size=valid_size, random_state=0)
 
-    # Convert DataFrames to Ray Datasets for batch processing
+    ''' # Convert DataFrames to Ray Datasets for batch processing
     ms_ray_ds = ray.data.from_pandas(ms_train_df)
     fs_ray_ds = ray.data.from_pandas(fs_train_df)
 
@@ -201,6 +259,18 @@ def main():
     # Convert Ray Datasets to PyTorch Datasets
     ms_train_dataset = RayTorchDataset(ms_ray_ds)
     fs_train_dataset = RayTorchDataset(fs_ray_ds)
+    '''
+
+    model, tokenizer = get_base_model(model_params_millions)
+    ms_tokenized_df = tokenize_and_mask_seqs(ms_train_df, tokenizer, window_size)
+    ms_train_dataset = TorchDataset(ms_tokenized_df)  
+    print("Number of ms training samples:", len(ms_train_dataset))
+
+    fs_tokenized_df = tokenize_and_mask_seqs(fs_train_df, tokenizer, window_size)
+    fs_train_dataset = TorchDataset(fs_tokenized_df)  
+    print("Number of fs training samples:", len(fs_train_dataset))
+
+
 
     # Set up LoRA
     lora_config = LoraConfig(
@@ -213,14 +283,16 @@ def main():
     )
 
     print('\n\nstarting training!')
+    ''' 
     # Launch Ray training jobs
     ms_future = train_model.remote("model_missense", ms_train_dataset, lora_config, batch_size)
     fs_future = train_model.remote("model_frameshift", fs_train_dataset, lora_config, batch_size)
-    print('\n\nTraining done!')
     # Wait for both jobs to finish
     ray.get([ms_future, fs_future])
+    '''
 
-
+    train_model("model_missense", model_params_millions, ms_train_dataset, lora_config, batch_size)
+    train_model("model_frameshift", model_params_millions, fs_train_dataset, lora_config, batch_size)
 
 if __name__ == '__main__':
     main()
