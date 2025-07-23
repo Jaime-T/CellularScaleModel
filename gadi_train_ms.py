@@ -7,17 +7,16 @@ Train test set and tokenize inputs
 """
 import os
 import tempfile
+import pandas as pd
+import numpy as np
 
 tmpdir = os.getenv('TMPDIR', tempfile.gettempdir())
 mpl_cache = os.path.join(tmpdir, 'matplotlib-cache')
 os.makedirs(mpl_cache, exist_ok=True)
 os.environ['MPLCONFIGDIR'] = mpl_cache
 
-import pandas as pd
-import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-print("Using Matplotlib cache dir:", matplotlib.get_cachedir())
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 import torch
@@ -125,20 +124,19 @@ def plot_loss(loss_values, descr, base_dir):
     plt.savefig(f"{base_dir}/loss_plot.png", dpi=300)
     plt.close()
 
-# @ray.remote(num_cpus=8, num_gpus=1)
-def train_model(model_name, descr, params_millions, train_dataset, lora_config, batch_size=6, epochs=5, lr=5e-5):
+def train_model(tokenizer, model, descr, train_dataset, lora_config, batch_size=6, epochs=3, lr=5e-5):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # Re-initialize model and tokenizer inside the remote function
-    tokenizer = EsmTokenizer.from_pretrained(model_name)
-    model = EsmForMaskedLM.from_pretrained(model_name)
-
     model = get_peft_model(model, lora_config)
+    model.print_trainable_parameters()
     model.to(device)
 
     optimizer = AdamW(model.parameters(), lr=lr)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    print("Affinity cores:", os.sched_getaffinity(0))
+    num_workers = min(4, len(os.sched_getaffinity(0)))
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     print("Batches per epoch:", len(train_loader))
 
     loss_per_epoch = []
@@ -192,10 +190,10 @@ def main():
     set_seeds(0)
 
     # Configuration
-    batch_size = 6
+    batch_size = 16
     window_size = 1022
     model_params_millions = 650
-    descr = "frameshift"
+    descr = "missense"
 
     # Load missense data
     data_path = Path("./data")
@@ -206,8 +204,9 @@ def main():
     ms_train_df, ms_valid_df = train_test_split(ms_df, test_size=valid_size, random_state=0)
 
     # Load original ESM-2 model
-    model_path = "/g/data/gi52/jaime/esm2_{model_params_millions}M_model"
+    model_path = f"/g/data/gi52/jaime/esm2_{model_params_millions}M_model"
     tokenizer = EsmTokenizer.from_pretrained(model_path)
+    model = EsmForMaskedLM.from_pretrained(model_path)
     print('loaded esm2 tokenizer')
 
     ms_tokenized_df = tokenize_and_mask_seqs(ms_train_df, tokenizer, window_size)
@@ -227,7 +226,7 @@ def main():
 
     print('\n\nstarting training!')
 
-    train_model(model_path, descr, model_params_millions, ms_train_dataset, lora_config, batch_size)
+    train_model(tokenizer, model, descr, ms_train_dataset, lora_config, batch_size)
 
 
 

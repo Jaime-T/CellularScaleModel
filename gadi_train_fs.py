@@ -1,23 +1,21 @@
 # -*- coding: utf-8 -*-
 
 """
-For frameshift mutation data:
-Train test set and tokenize inputs
+For frameshift mutation data: train pretrained ESM2 model 
 
 """
 import os
 import tempfile
+import pandas as pd
+import numpy as np
 
 tmpdir = os.getenv('TMPDIR', tempfile.gettempdir())
 mpl_cache = os.path.join(tmpdir, 'matplotlib-cache')
 os.makedirs(mpl_cache, exist_ok=True)
 os.environ['MPLCONFIGDIR'] = mpl_cache
 
-import pandas as pd
-import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-print("Using Matplotlib cache dir:", matplotlib.get_cachedir())
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 import torch
@@ -125,24 +123,21 @@ def plot_loss(loss_values, descr, base_dir):
     plt.savefig(f"{base_dir}/loss_plot.png", dpi=300)
     plt.close()
 
-# @ray.remote(num_cpus=8, num_gpus=1)
-def train_model(model_name, descr, params_millions, train_dataset, lora_config, batch_size=6, epochs=5, lr=5e-5):
+def train_model(tokenizer, model, descr, train_dataset, lora_config, batch_size=6, epochs=3, lr=5e-5):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # Re-initialize model and tokenizer inside the remote function
-    tokenizer = EsmTokenizer.from_pretrained(model_name)
-    model = EsmForMaskedLM.from_pretrained(model_name)
-
     model = get_peft_model(model, lora_config)
+    model.print_trainable_parameters()
     model.to(device)
 
     optimizer = AdamW(model.parameters(), lr=lr)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
     print("Batches per epoch:", len(train_loader))
 
     loss_per_epoch = []
-    base_dir = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}"
+    base_dir = f"/g/data/gi52/jaime/trained/esm2_650M_model/batch_size_32/{descr}"
+    os.makedirs(base_dir, exist_ok=True)
 
     for epoch in range(epochs):
         print(f"Starting training for epoch {epoch+1}...")
@@ -192,7 +187,7 @@ def main():
     set_seeds(0)
 
     # Configuration
-    batch_size = 6
+    batch_size = 32
     window_size = 1022
     model_params_millions = 650
     descr = "frameshift"
@@ -208,6 +203,7 @@ def main():
     # Load original ESM-2 model
     model_path = f"/g/data/gi52/jaime/esm2_{model_params_millions}M_model"
     tokenizer = EsmTokenizer.from_pretrained(model_path)
+    model = EsmForMaskedLM.from_pretrained(model_path)
     print(f'loaded esm2 tokenizer from {model_path}')
 
     fs_tokenized_df = tokenize_and_mask_seqs(fs_train_df, tokenizer, window_size)
@@ -227,7 +223,7 @@ def main():
 
     print('\n\nstarting training!')
 
-    train_model(model_path, descr, model_params_millions, fs_train_dataset, lora_config, batch_size)
+    train_model(tokenizer, model, descr, fs_train_dataset, lora_config, batch_size)
 
 
 if __name__ == '__main__':
