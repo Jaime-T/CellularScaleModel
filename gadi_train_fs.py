@@ -28,6 +28,7 @@ from torch.optim import AdamW
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 import torch.nn.functional as F
+from accelerate import Accelerator
 
 class TorchDataset(Dataset):
     def __init__(self, data):
@@ -124,55 +125,59 @@ def plot_loss(loss_values, descr, base_dir):
     plt.close()
 
 def train_model(tokenizer, model, descr, train_dataset, lora_config, batch_size=6, epochs=3, lr=5e-5):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    #device = "cuda" if torch.cuda.is_available() else "cpu"
+    # NEW STUFF!!
+    accelerator = Accelerator()
+    device = accelerator.device
 
     model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
-    model.to(device)
+
+    #model.to(device)
 
     optimizer = AdamW(model.parameters(), lr=lr)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
     print("Batches per epoch:", len(train_loader))
 
-    loss_per_epoch = []
-    base_dir = f"/g/data/gi52/jaime/trained/esm2_650M_model/batch_size_32/{descr}"
+    model, optimizer, train_loader, scheduler = accelerator.prepare(
+        model, optimizer, train_loader, scheduler
+    )
+
+    base_dir = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}"
     os.makedirs(base_dir, exist_ok=True)
 
+    loss_per_epoch = []
     for epoch in range(epochs):
         print(f"Starting training for epoch {epoch+1}...")
         model.train()
         total_loss = 0
-        for batch in tqdm(train_loader, desc=f"[{descr}] Epoch {epoch+1}"):
-            batch = {k: v.to(device) for k, v in batch.items()}
+        for batch in train_loader:
+            optimizer.zero_grad()
             outputs = model(**batch)
             loss = outputs.loss
-            loss.backward()
+            accelerator.backward(loss)
             optimizer.step()
-            optimizer.zero_grad()
+            scheduler.step()
             total_loss += loss.item()
 
         avg_loss = total_loss / len(train_loader)
         print(f"[{descr}] Epoch {epoch+1} training loss: {avg_loss:.4f}")
         loss_per_epoch.append(avg_loss)
 
-        # save after each epoch
-        print(f"Saving checkpoint epoch{epoch+1} ...")
-        checkpoint_dir = os.path.join(base_dir, f"epoch{epoch+1}")
-        os.makedirs(checkpoint_dir, exist_ok=True)
-        model.save_pretrained(checkpoint_dir)
-        tokenizer.save_pretrained(checkpoint_dir)
-        print(f"Saved epoch{epoch+1} to {checkpoint_dir}")
-
-
     # Save model
-    final_dir = os.path.join(base_dir, "final_merged")
-    os.makedirs(final_dir, exist_ok=True)
-    print("Merging and saving final model...")
-    model = model.merge_and_unload()
-    model.save_pretrained(final_dir)
-    tokenizer.save_pretrained(final_dir)
-    print(f"Saved final {descr} model and tokenizer to {final_dir}")
+    save_dir = os.path.join(base_dir, "final_merged")
+    os.makedirs(save_dir, exist_ok=True)
+    print("Merging and saving model...")
+    unwrapped_model = accelerator.unwrap_model(model)
+    unwrapped_model.save_pretrained(
+        save_dir,
+        is_main_process=accelerator.is_main_process,
+        save_function=accelerator.save,
+    )
+    tokenizer.save_pretrained(save_dir)
+
+    print(f"Saved final {descr} model and tokenizer to {save_dir}")
 
     # Plot and save loss plot
     plot_loss(loss_per_epoch, descr, base_dir)
@@ -187,7 +192,7 @@ def main():
     set_seeds(0)
 
     # Configuration
-    batch_size = 32
+    batch_size = 8
     window_size = 1022
     model_params_millions = 650
     descr = "frameshift"
@@ -216,7 +221,7 @@ def main():
         r=4,
         lora_alpha=8,
         target_modules=["query"],  # PEFT will insert LoRA into matching linear layers
-        lora_dropout=0.0,
+        lora_dropout=0.1,
         bias="none",
         task_type=TaskType.TOKEN_CLS,  # Best fit for masked token modelling
     )

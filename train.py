@@ -19,14 +19,16 @@ from sklearn.model_selection import train_test_split
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from transformers import AutoTokenizer, EsmModel, AutoModelForMaskedLM
 from transformers import EsmForMaskedLM, EsmTokenizer 
 import random
 from peft import get_peft_model, LoraConfig, TaskType
 from torch.optim import AdamW
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
+from tqdm.auto import tqdm
 import torch.nn.functional as F
+from accelerate import Accelerator
+  
 
 class RayTorchDataset(Dataset):
     def __init__(self, ray_dataset):
@@ -144,61 +146,88 @@ def get_base_model(num_params_millions: int):
     tokenizer = EsmTokenizer.from_pretrained(model_name)
     return model, tokenizer
 
-def plot_loss(loss_values, model_name, params_millions):
+def plot_loss(loss_values, descr, save_dir):
     plt.figure(figsize=(8, 5))
     plt.plot(range(1, len(loss_values) + 1), loss_values, marker='o', label='LOSS')
-    plt.title(f'Loss vs Epochs for {model_name}')
+    plt.title(f'Loss vs Epochs for {descr}')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f"./train_{params_millions}M/{model_name}_loss_plot.png", dpi=300)
+    plt.savefig(f"{save_dir}/loss_plot.png", dpi=300)
     plt.close()
 
 # @ray.remote(num_cpus=8, num_gpus=1)
-def train_model(model_name, params_millions, train_dataset, lora_config, batch_size, epochs=5, lr=5e-5):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+def train_model(tokenizer, model, description, save_dir, train_dataset, lora_config, batch_size, epochs=5, lr=5e-5):
+    #device = "cuda" if torch.cuda.is_available() else "cpu"
+    # NEW STUFF!!
+    accelerator = Accelerator()
+    device = accelerator.device
 
-    # Re-initialize model and tokenizer inside the remote function
-    model, tokenizer = get_base_model(params_millions)
+    # attach PEFT adapter
     model = get_peft_model(model, lora_config)
-    model.to(device)
+    model.print_trainable_parameters()
 
+    # set up optimiser
     optimizer = AdamW(model.parameters(), lr=lr)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
+   
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    model, optimizer, train_loader, scheduler = accelerator.prepare(
+        model, optimizer, train_loader, scheduler
+    )
+
+
     print("Batches per epoch:", len(train_loader))
 
     loss_per_epoch = []
-
     for epoch in range(epochs):
+        print(f'Epoch {epoch+1} starting')
         model.train()
         total_loss = 0
-        for batch in tqdm(train_loader, desc=f"[{model_name}] Epoch {epoch+1}"):
+        for batch in train_loader:
+ 
+            optimizer.zero_grad()
+            outputs = model(**batch)
+            loss = outputs.loss
+            accelerator.backward(loss)
+            optimizer.step()
+            scheduler.step()
+            total_loss += loss.item()
+            '''
             batch = {k: v.to(device) for k, v in batch.items()}
             outputs = model(**batch)
             loss = outputs.loss
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
-            total_loss += loss.item()
+            total_loss += loss.item()'''
 
         avg_loss = total_loss / len(train_loader)
-        print(f"[{model_name}] Epoch {epoch+1} training loss: {avg_loss:.4f}")
+        print(f"[{description}] Epoch {epoch+1} training loss: {avg_loss:.4f}")
         loss_per_epoch.append(avg_loss)
+        
 
     # Save model
     print("Merging and saving model...")
-    model = model.merge_and_unload()
-    model.save_pretrained(f"./train_{params_millions}M/{model_name}")
-    tokenizer.save_pretrained(f"./train_{params_millions}M/{model_name}")
-    print(f"Saved model and tokenizer to ./train_{params_millions}M/{model_name}")
+    unwrapped_model = accelerator.unwrap_model(model)
+    unwrapped_model.save_pretrained(
+        save_dir,
+        is_main_process=accelerator.is_main_process,
+        save_function=accelerator.save,
+    )
+    tokenizer.save_pretrained(save_dir)
+
+    #model = model.merge_and_unload()
+    #model.save_pretrained(save_dir)
+    #tokenizer.save_pretrained(save_dir)
+    print(f"Saved model and tokenizer to {save_dir}")
 
     # Plot and save loss plot
-    plot_loss(loss_per_epoch, model_name, params_millions)
+    plot_loss(loss_per_epoch, description, save_dir)
 
-    return f"{model_name} training complete"
+    return f"{description} training complete"
 
 
 
@@ -207,28 +236,9 @@ def main():
     set_seeds(0)
 
     # Configuration
-    num_workers = 1
-    num_devices = 1
-    resources_per_worker = {"CPU": 8, "GPU": 1 } 
     batch_size = 8
     window_size = 1022
     model_params_millions = 35
-
-    ''' 
-    # Initialise Ray, a distributed computing framework
-    if ray.is_initialized():
-        ray.shutdown()
-    ray.init(
-        num_cpus=num_workers * resources_per_worker["CPU"],
-        num_gpus=num_workers * resources_per_worker["GPU"]
-    )
-    print(ray.cluster_resources())
-
-    # Set ray to be deterministic 
-    ray.data.DatasetContext.get_current().execution_options.preserve_order = (
-        True  
-    )
-    '''
 
     # Load data
     data_path = Path("./data")
@@ -240,27 +250,6 @@ def main():
     ms_train_df, ms_valid_df = train_test_split(ms_df, test_size=valid_size, random_state=0)
     fs_train_df, fs_valid_df = train_test_split(fs_df, test_size=valid_size, random_state=0)
 
-    ''' # Convert DataFrames to Ray Datasets for batch processing
-    ms_ray_ds = ray.data.from_pandas(ms_train_df)
-    fs_ray_ds = ray.data.from_pandas(fs_train_df)
-
-    # Tokenize and mask 
-    model, tokenizer = get_base_model()
-    ms_ray_ds = ms_ray_ds.map_batches(
-        lambda batch: tokenize_and_mask_seqs(batch, tokenizer, window_size),
-        batch_format="pandas",
-    )
-
-    fs_ray_ds = fs_ray_ds.map_batches(
-        lambda batch: tokenize_and_mask_seqs(batch, tokenizer, window_size),
-        batch_format="pandas",
-    )
-    
-    # Convert Ray Datasets to PyTorch Datasets
-    ms_train_dataset = RayTorchDataset(ms_ray_ds)
-    fs_train_dataset = RayTorchDataset(fs_ray_ds)
-    '''
-
     model, tokenizer = get_base_model(model_params_millions)
     ms_tokenized_df = tokenize_and_mask_seqs(ms_train_df, tokenizer, window_size)
     ms_train_dataset = TorchDataset(ms_tokenized_df)  
@@ -271,28 +260,20 @@ def main():
     print("Number of fs training samples:", len(fs_train_dataset))
 
 
-
     # Set up LoRA
     lora_config = LoraConfig(
         r=4,
         lora_alpha=8,
         target_modules=["query"],  # PEFT will insert LoRA into matching linear layers
-        lora_dropout=0.0,
+        lora_dropout=0.1,
         bias="none",
         task_type=TaskType.SEQ_2_SEQ_LM,   # ! Changed from TOKEN_CLS !
     )
 
     print('\n\nstarting training!')
-    ''' 
-    # Launch Ray training jobs
-    ms_future = train_model.remote("model_missense", ms_train_dataset, lora_config, batch_size)
-    fs_future = train_model.remote("model_frameshift", fs_train_dataset, lora_config, batch_size)
-    # Wait for both jobs to finish
-    ray.get([ms_future, fs_future])
-    '''
 
-    train_model("model_missense", model_params_millions, ms_train_dataset, lora_config, batch_size)
-    train_model("model_frameshift", model_params_millions, fs_train_dataset, lora_config, batch_size)
+    train_model(tokenizer, model, "model_missense", "./train_{params_millions}_2/model_missense", ms_train_dataset, lora_config, batch_size)
+    train_model(tokenizer, model, "model_frameshift", "./train_{params_millions}_2/model_frameshift", fs_train_dataset, lora_config, batch_size)
 
 if __name__ == '__main__':
     main()

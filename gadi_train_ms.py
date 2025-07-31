@@ -133,10 +133,7 @@ def train_model(tokenizer, model, descr, train_dataset, lora_config, batch_size=
 
     optimizer = AdamW(model.parameters(), lr=lr)
 
-    print("Affinity cores:", os.sched_getaffinity(0))
-    num_workers = min(4, len(os.sched_getaffinity(0)))
-
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
     print("Batches per epoch:", len(train_loader))
 
     loss_per_epoch = []
@@ -190,7 +187,7 @@ def main():
     set_seeds(0)
 
     # Configuration
-    batch_size = 16
+    batch_size = 8
     window_size = 1022
     model_params_millions = 650
     descr = "missense"
@@ -219,7 +216,7 @@ def main():
         r=4,
         lora_alpha=8,
         target_modules=["query"],  # PEFT will insert LoRA into matching linear layers
-        lora_dropout=0.0,
+        lora_dropout=0.1,
         bias="none",
         task_type=TaskType.TOKEN_CLS,  # Best fit for masked token modelling
     )

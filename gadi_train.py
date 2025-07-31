@@ -223,7 +223,7 @@ def main():
         r=4,
         lora_alpha=8,
         target_modules=["query"],  # PEFT will insert LoRA into matching linear layers
-        lora_dropout=0.0,
+        lora_dropout=0.1,
         bias="none",
         task_type=TaskType.TOKEN_CLS,  # Best fit for masked token modelling
     )
