@@ -52,7 +52,7 @@ def plot_heatmap(params, gene, data, title, sequence, amino_acids, start_pos=1):
     plt.yticks(range(20), amino_acids)
     plt.xlabel("Position in Protein Sequence")
     plt.ylabel("Amino Acid Mutations")
-    plt.title(title + ' ' + params + 'M')
+    plt.title(title + ' ' + str(params) + 'M')
     plt.colorbar(label="Log Likelihood Ratio (LLR)")
     plt.tight_layout()
     
@@ -103,9 +103,9 @@ def main():
 
     # Sequence and gene of interest 
     sequence = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD"
-    gene = "tp53"
+    gene = "tp53_2"
 
-    # myc seq
+    #gene = "myc"
     #sequence = "MDFFRVVENQQPPATMPLNVSFTNRNYDLDYDSVQPYFYCDEEENFYQQQQQSELQPPAPSEDIWKKFELLPTPPLSPSRRSGLCSPSYVAVTPFSLRGDNDGGGGSFSTADQLEMVTELLGGDMVNQSFICDPDDETFIKNIIIQDCMWSGFSAAAKLVSEKLASYQAARKDSGSPNPARGHSVCSTSSLYLQDLSAAASECIDPSVVFPYPLNDSSSPKSCASQDSSAFSPSSDSLLSSTESSPQGSPEPLVLHEETPPTTSSDSEEEQEDEEEIDVVSVEKRQAPGKRSESGSPSAGGHSKPPHSPLVLKRCHVSTHQHNYAAPPSTRKDYPAAKRVKLDSVRVLRQISNNRKCTSPRSSDTEENVKRRTHNVLERQRRNELKRSFFALRDQIPELENNEKAPKVVILKKATAYILSVQAEEQKLISEEDLLRKRREQLKHKLEQLRNSCA"
 
     # Load original ESM-2 model
@@ -139,7 +139,7 @@ def main():
     plot_heatmap(params, gene, fs_diff_heatmap, "Difference (Fine-tuned Frameshift - Original)", sequence, amino_acids)
 
     # Compare amino acid predictions
-    masked_pos = 27
+    masked_pos = 127
 
     original_preds = topk_predictions(base_model, base_tokenizer, sequence, masked_pos)
     ms_preds = topk_predictions(ms_model, ms_tokenizer, sequence, masked_pos)
