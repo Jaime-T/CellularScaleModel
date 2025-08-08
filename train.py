@@ -242,13 +242,25 @@ def main():
 
     # Load data
     data_path = Path("./data")
-    ms_df = pd.read_parquet(data_path / "ms_train_split.parquet")
-    fs_df = pd.read_parquet(data_path / "fs_train_split.parquet")
+    ms_df = pd.read_parquet(data_path / "all_ms_samples.parquet")
+    fs_df = pd.read_parquet(data_path / "all_fs_samples.parquet")
 
-    # Split Data (80% train, 20% validate)
+    ### NEW!!
+    # Split data into 60% train, 20% validate, 20% test 
+
+    test_size = 0.2
+    ms_train_df, ms_test_df = train_test_split(ms_df, test_size=test_size, random_state=0)
+    fs_train_df, fs_test_df = train_test_split(fs_df, test_size=test_size, random_state=0)
+
+    # Split Data 0.25 of 80% = 20%
     valid_size = 0.25  
-    ms_train_df, ms_valid_df = train_test_split(ms_df, test_size=valid_size, random_state=0)
-    fs_train_df, fs_valid_df = train_test_split(fs_df, test_size=valid_size, random_state=0)
+    ms_train_df, ms_valid_df = train_test_split(ms_train_df, test_size=valid_size, random_state=0)
+    fs_train_df, fs_valid_df = train_test_split(fs_train_df, test_size=valid_size, random_state=0)
+
+    # Save test samples for later:
+    data_path = Path.cwd() / "data"
+    ms_test_df.to_parquet(data_path / "ms_test_samples.parquet")
+    fs_test_df.to_parquet(data_path / "fs_test_samples.parquet")
 
     model, tokenizer = get_base_model(model_params_millions)
     ms_tokenized_df = tokenize_and_mask_seqs(ms_train_df, tokenizer, window_size)
