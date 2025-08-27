@@ -20,18 +20,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 import re
-from sklearn.model_selection import train_test_split
 from pathlib import Path
 
 def analyse(df: object):
-    
-    # Filter to non-null mt_protein_seq
-    df = df[df['mt_protein_seq'].notnull()].copy()
-    print(f"{len(df):,} records remain after filtering null mt_protein_seq")
 
     # VariantType counts
     print("\nVariantType frequencies:")
     counts = df['VariantType'].value_counts()
+    print(counts.to_string())
+
+    # VariantInfo counts
+    print("\nVariantInfo frequencies:")
+    counts = df['VariantInfo'].value_counts()
     print(counts.to_string())
 
     # Compute protein lengths 
@@ -63,7 +63,7 @@ def analyse(df: object):
     plt.grid(True, linestyle='--', alpha=0.5)
     plt.xlim(0, stats['Maximum'] + bin_width)
     plt.tight_layout()
-    plt.show()
+    plt.savefig('./data/seq_len_distr.png')
 
     # Unique proteins 
     print(f"\nNumber of unique proteins by Hugo Symbol: {len(df['HugoSymbol'].unique())}")
@@ -73,11 +73,8 @@ def analyse(df: object):
     print(f"\nTop {top}: {hugo_count.head(top)}\n")
 
 def filter_empty(df: object):
-    """ Filter out sequences that no protein sequence  
-    """
-    # Filter out null mt_protein_seq
+    # Filter out null/empty mutant protein sequenves
     df = df[df['mt_protein_seq'].notnull()].copy()
-
     return df
 
 def slide_window(df: pd.DataFrame, window_size: int = 1022, seed: int = 42) -> pd.DataFrame:
@@ -141,44 +138,47 @@ def filter_frameshift(df: pd.DataFrame):
 def main():
 
     # Load data 
-    csv_path = './data/OmicsSomaticMutations_with_protein_seqs.csv'
+    csv_path = './data/update3_unique_mutant_proteins.csv'
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"File not found: {csv_path}")
     df = pd.read_csv(csv_path, low_memory=False)
     print(f"\nLoaded {len(df):,} records from {csv_path}")
 
-    # Data Analysis 
-    analyse(df)
-
     # Data Filtering
     df = filter_empty(df)
+    print(f'After filtering, there are {len(df)} sequences.')
+
+    # Data Analysis 
+    analyse(df)
 
     # Slide window 
     window_size = 1022
     seed = 42
     df = slide_window(df, window_size, seed)
 
+    # Save as a new file to keep the original safe
+    df.to_csv("./data/update_unique_mutant_proteins_with_window.csv", index=False)
+
     # Filter df by the variant type: missense and frameshift 
-    ms_df = filter_missense(df) # 57763 entries
-    fs_df = filter_frameshift(df) # 9246 entries
+    ms_df = filter_missense(df) 
+    fs_df = filter_frameshift(df) 
 
     # analyse ms and fs data
-    print('\nMs data analysis:')
+    print(f'\nMs data analysis: {len(ms_df)} sequences')
     analyse(ms_df)
-    print('\nFs data analysis:')
+    print(f'\nFs data analysis: {len(fs_df)} sequences')
     analyse(fs_df)
 
     # Save to file
-        # Set data_path to a folder named 'data' in the current working directory
     data_path = Path.cwd() / "data"
 
-        # Create the folder if it doesn't exist
+    # Create the folder if it doesn't exist
     data_path.mkdir(parents=True, exist_ok=True)
     
-    df.to_parquet(data_path / "processed_data.parquet")
-
-    ms_df.to_parquet(data_path / "all_ms_samples.parquet")
-    fs_df.to_parquet(data_path / "all_fs_samples.parquet")
+    # Save
+    df.to_parquet(data_path / "update_processed_data.parquet")
+    ms_df.to_parquet(data_path / "update_all_ms_samples.parquet")
+    fs_df.to_parquet(data_path / "update_all_fs_samples.parquet")
 
 if __name__ == '__main__':
     main()
