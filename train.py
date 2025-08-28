@@ -8,6 +8,7 @@ Code inspiration: https://github.com/naity/finetune-esm/blob/main/notebooks/cafa
 
 """
 import os
+import re
 import ray
 from ray.data.dataset import Dataset
 import pandas as pd
@@ -79,23 +80,49 @@ def tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022, mlm_probab
     # Clone to create targets
     targets = input_ids.clone()
 
-    # Create probability mask (randomly choose tokens to mask)
-    probability_matrix = torch.full(targets.shape, mlm_probability)
-    special_tokens_mask = [
-        tokenizer.get_special_tokens_mask(val, already_has_special_tokens=True)
-        for val in targets.tolist()
-    ]
-    special_tokens_mask = torch.tensor(special_tokens_mask, dtype=torch.bool)
-    probability_matrix.masked_fill_(special_tokens_mask, value=0.0)
+    # Mask the mutation site position: 
+    for i, (prot_change, start_index) in enumerate(zip(batch['ProteinChange'], batch['start_index'])):
 
-    # Sample masked indices
-    masked_indices = torch.bernoulli(probability_matrix).bool()
+        print(f'sample is {batch}')
+        # Extract mutation position, e.g. p.A27K → 27
+        m = re.match(r"p\.\D+(\d+)", prot_change)
+        if m:
+            mut_pos = int(m.group(1))
 
-    # Replace selected input_ids with [MASK] token
-    input_ids[masked_indices] = tokenizer.mask_token_id
+            # Convert to window-relative position
+            window_pos = mut_pos - start_index  
 
-    # Only keep targets for masked tokens
-    targets[~masked_indices] = -100
+            token_index = window_pos 
+
+            print(f'Protein change is {prot_change}, and the mutation position is {mut_pos}, token is at {token_index}')
+            print(f'start index: {batch['start_index']}')
+
+            if 0 <= token_index < input_ids.shape[1]:
+                # Keep only mutation site for loss
+                targets[i, :] = -100
+                targets[i, token_index] = encoded_seqs["input_ids"][i, token_index]
+
+                # Mask the mutation position
+                input_ids[i, token_index] = tokenizer.mask_token_id
+
+            ''' 
+            # Original tokens
+            original_token = tokenizer.convert_ids_to_tokens(int(targets[i, token_index]))
+            original_seq = tokenizer.convert_ids_to_tokens(targets[i])
+
+            masked_token = tokenizer.convert_ids_to_tokens(int(input_ids[i, token_index]))
+            masked_sseq = tokenizer.convert_ids_to_tokens(input_ids[i])
+            #print("Original token was:", original_token)
+            torch.set_printoptions(threshold=float('inf'))
+            print("target: ", targets[i])
+            print('input', input_ids[i])
+            #print("Original seq was:", original_seq)
+
+            # Tokens after masking
+            #print("Masked tokens:", masked_token)
+            #print("Masked seq:", masked_sseq)
+            '''
+
 
     df = pd.DataFrame({
         "input_ids": input_ids.tolist(),
@@ -238,32 +265,34 @@ def main():
     # Configuration
     batch_size = 8
     window_size = 1022
-    model_params_millions = 35
+    model_params_millions = 8
 
     # Load data
     data_path = Path("./data")
-    ms_df = pd.read_parquet(data_path / "all_ms_samples.parquet")
-    fs_df = pd.read_parquet(data_path / "all_fs_samples.parquet")
+    ms_df = pd.read_parquet(data_path / "update2_all_samples.parquet") # change to just ms 
+    #fs_df = pd.read_parquet(data_path / "update_all_fs_samples.parquet")
 
     ### NEW!!
     # Split data into 60% train, 20% validate, 20% test 
 
     test_size = 0.2
     ms_train_df, ms_test_df = train_test_split(ms_df, test_size=test_size, random_state=0)
-    fs_train_df, fs_test_df = train_test_split(fs_df, test_size=test_size, random_state=0)
+    #fs_train_df, fs_test_df = train_test_split(fs_df, test_size=test_size, random_state=0)
 
     # Split Data 0.25 of 80% = 20%
     valid_size = 0.25  
     ms_train_df, ms_valid_df = train_test_split(ms_train_df, test_size=valid_size, random_state=0)
-    fs_train_df, fs_valid_df = train_test_split(fs_train_df, test_size=valid_size, random_state=0)
+    #fs_train_df, fs_valid_df = train_test_split(fs_train_df, test_size=valid_size, random_state=0)
 
     # Save test samples for later:
     data_path = Path.cwd() / "data"
-    ms_test_df.to_parquet(data_path / "ms_test_samples.parquet")
-    fs_test_df.to_parquet(data_path / "fs_test_samples.parquet")
+    #ms_test_df.to_parquet(data_path / "ms_test_samples.parquet")
+    #fs_test_df.to_parquet(data_path / "fs_test_samples.parquet")
 
     model, tokenizer = get_base_model(model_params_millions)
-    ms_tokenized_df = tokenize_and_mask_seqs(ms_train_df, tokenizer, window_size)
+    ms_tokenized_df = tokenize_and_mask_seqs(ms_train_df.head(3), tokenizer, window_size)
+
+    exit()
     ms_train_dataset = TorchDataset(ms_tokenized_df)  
     print("Number of ms training samples:", len(ms_train_dataset))
 
