@@ -2,15 +2,15 @@
 
 """
 Changed masking function to only mask the mutation positions 
-Using updated DepMap data, with 550281 total missense sequences 
+Using updated DepMap data, with 81446 frameshift sequences 
 
 Train test set and tokenize inputs
 
 """
 import os
+import re
 import tempfile
 import pandas as pd
-import re
 import numpy as np
 from timeit import default_timer as timer
 
@@ -53,7 +53,7 @@ class TorchDataset(Dataset):
             key: torch.tensor(self.data[key][idx]) for key in self.data
         }
 
-def tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022):
+def tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022, mlm_probability: float = 0.15):
     # Tokenize the batch
     encoded_seqs = tokenizer(
         batch['windowed_seq'].tolist(),
@@ -93,7 +93,6 @@ def tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022):
 
                 # Mask the mutation position
                 input_ids[i, token_index] = tokenizer.mask_token_id
-
 
     df = pd.DataFrame({
         "input_ids": input_ids.tolist(),
@@ -241,10 +240,6 @@ def train_model(tokenizer, model, descr, train_dataset, lora_config, batch_size=
 
     return f"{descr} training complete"
 
-# Function to extract the position number from ProteinChange
-def extract_position(protein_change):
-    match = re.search(r'\d+', protein_change)
-    return int(match.group()) if match else float('inf')
 
 
 def main():
@@ -256,45 +251,37 @@ def main():
     batch_size = 8
     window_size = 1022
     model_params_millions = 650
-    descr = "missense"
+    descr = "frameshift"
 
     # Load missense data
     data_path = Path("./data")
-    ms_df = pd.read_parquet(data_path / "update2_all_ms_samples.parquet")
+    fs_df = pd.read_parquet(data_path / "update2_all_fs_samples.parquet")
     t1 = timer()
-    print(f"Time for loading missense data: {t1 - t0:.4f} seconds")
+    print(f"Time for loading frameshift data: {t1 - t0:.4f} seconds")
 
     # Split data into 60% train, 20% validate, 20% test 
     test_size = 0.2
-    ms_train_df, ms_test_df = train_test_split(ms_df, test_size=test_size, random_state=0)
+    fs_train_df, fs_test_df = train_test_split(fs_df, test_size=test_size, random_state=0)
     valid_size = 0.25  
-    ms_train_df, ms_valid_df = train_test_split(ms_train_df, test_size=valid_size, random_state=0)
+    fs_train_df, fs_valid_df = train_test_split(fs_train_df, test_size=valid_size, random_state=0)
     t2 = timer()
     print(f"Time for splitting data: {t2 - t1:.4f} seconds")
 
     # Analyse training samples
     # Count HugoSymbol frequencies and select top N
-    hugo_counts = ms_train_df['HugoSymbol'].value_counts()
+    hugo_counts = fs_train_df['HugoSymbol'].value_counts()
     top_genes = hugo_counts.head(10).index.tolist()
-    print(top_genes)
 
     # Filter rows and print relevant columns
     filtered = (
-        ms_train_df[ms_train_df['HugoSymbol'].isin(top_genes)]
+        fs_train_df[fs_train_df['HugoSymbol'].isin(top_genes)]
         [['HugoSymbol', 'ProteinChange', 'windowed_seq']]
     )
     print(f"Showing rows for top 10 most frequent HugoSymbols:\n{filtered}")
-    # Sort DataFrame by numeric position in ProteinChange
-    filtered = filtered.sort_values(
-        by="ProteinChange",
-        key=lambda col: col.map(extract_position)
-    ).reset_index(drop=True)
-    print(filtered.head(50))
 
     t3 = timer()
     print(f"Time for analysing training samples: {t3 - t2:.4f} seconds")
 
-    
     # Load original ESM-2 model
     model_path = f"/g/data/gi52/jaime/esm2_{model_params_millions}M_model"
     tokenizer = EsmTokenizer.from_pretrained(model_path)
@@ -302,11 +289,11 @@ def main():
     t4 = timer()
     print(f"Time for loading esm model: {t4 - t3:.4f} seconds")
 
-    ms_tokenized_df = tokenize_and_mask_seqs(ms_train_df, tokenizer, window_size)
-    ms_train_dataset = TorchDataset(ms_tokenized_df)
+    fs_tokenized_df = tokenize_and_mask_seqs(fs_train_df, tokenizer, window_size)
+    fs_train_dataset = TorchDataset(fs_tokenized_df)
     t5 = timer()
     print(f"Time for tokenising and masking: {t5 - t4:.4f} seconds")
-    print("Number of ms training samples:", len(ms_train_dataset))
+    print("Number of ms training samples:", len(fs_train_dataset))
 
     # Set up LoRA
     lora_config = LoraConfig(
@@ -319,12 +306,12 @@ def main():
     )
 
     print('\nTesting pretrained model')
-    #testing_pretrained_model(lora_config, model, ms_train_dataset, batch_size)
+    #testing_pretrained_model(lora_config, model, fs_train_dataset, batch_size)
     t6 = timer()
     print(f"Time for testing pretrained model: {t6 - t5:.4f} seconds")
 
     print('\n\nStarting training!')
-    train_model(tokenizer, model, descr, ms_train_dataset, lora_config, batch_size)
+    train_model(tokenizer, model, descr, fs_train_dataset, lora_config, batch_size)
     t7 = timer()
     print(f"Total Time for training model: {t7 - t6:.4f} seconds")
 
