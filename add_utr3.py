@@ -5,7 +5,7 @@ import re
 # Define input and output file paths
 cds_fasta = "./data/update_mart_export_coding.txt"
 utr3_fasta = "./data/update_mart_export_utr3.txt"
-output_fasta = "update_cds_with_utr3.fasta"
+output_fasta = "./data/update_cds_with_utr3.fasta"
 
 # Read sequences from both FASTA files into dictionaries
 cds_dict = SeqIO.to_dict(SeqIO.parse(cds_fasta, "fasta"))
@@ -16,6 +16,7 @@ with open(output_fasta, "w") as output_handle:
 
     pattern = re.compile(r'^[NACTG]+$')
     for seq_id, cds_record in cds_dict.items():
+        print(seq_id)
         cds_seq = cds_record.seq
 
         if pattern.match(str(cds_seq)):
