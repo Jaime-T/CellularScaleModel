@@ -95,6 +95,7 @@ def slide_window(df: pd.DataFrame, window_size: int = 1022, seed: int = 42) -> p
     """
     random.seed(seed)
     windowed_seqs = []
+    start_indexs = []
 
     for idx, row in df.iterrows():
         seq = row['mt_protein_seq']
@@ -102,6 +103,7 @@ def slide_window(df: pd.DataFrame, window_size: int = 1022, seed: int = 42) -> p
         gene = row['HugoSymbol']
         seq_len = len(seq)
         windowed_seq = seq  # default is full sequence
+        start = 0 # default is start at 0
 
         # Extract mutation position using regex (e.g. p.A27K or p.A32VfsTer5)
         match = re.search(r'p\.\D+(\d+)', hgvs)
@@ -109,7 +111,6 @@ def slide_window(df: pd.DataFrame, window_size: int = 1022, seed: int = 42) -> p
             try:
                 mut_pos = int(match.group(1)) - 1  # Convert to 0-based index
                 
-
                 if seq_len > window_size:
                     # Ensure the mutation is within the 1022-aa window
                     min_start = max(0, mut_pos - window_size + 1)
@@ -121,12 +122,15 @@ def slide_window(df: pd.DataFrame, window_size: int = 1022, seed: int = 42) -> p
                     else:
                         start = random.randint(min_start, max_start)
                     windowed_seq = seq[start:start + window_size]
+
             except ValueError:
                 pass  # fallback to full sequence on parsing error
         windowed_seqs.append(windowed_seq)
+        start_indexs.append(start)
 
     df = df.copy()
     df['windowed_seq'] = windowed_seqs
+    df['start_index'] = start_indexs
     return df
 
 def filter_missense(df: pd.DataFrame):
@@ -138,7 +142,7 @@ def filter_frameshift(df: pd.DataFrame):
 def main():
 
     # Load data 
-    csv_path = './data/update3_unique_mutant_proteins.csv'
+    csv_path = './data/update2_unique_mutant_proteins.csv'
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"File not found: {csv_path}")
     df = pd.read_csv(csv_path, low_memory=False)
@@ -157,7 +161,7 @@ def main():
     df = slide_window(df, window_size, seed)
 
     # Save as a new file to keep the original safe
-    df.to_csv("./data/update_unique_mutant_proteins_with_window.csv", index=False)
+    df.to_csv("./data/update2_windowed_unique_mutant_proteins.csv", index=False)
 
     # Filter df by the variant type: missense and frameshift 
     ms_df = filter_missense(df) 
@@ -176,9 +180,9 @@ def main():
     data_path.mkdir(parents=True, exist_ok=True)
     
     # Save
-    df.to_parquet(data_path / "update_processed_data.parquet")
-    ms_df.to_parquet(data_path / "update_all_ms_samples.parquet")
-    fs_df.to_parquet(data_path / "update_all_fs_samples.parquet")
+    df.to_parquet(data_path / "update2_all_samples.parquet")
+    ms_df.to_parquet(data_path / "update2_all_ms_samples.parquet")
+    fs_df.to_parquet(data_path / "update2_all_fs_samples.parquet")
 
 if __name__ == '__main__':
     main()
