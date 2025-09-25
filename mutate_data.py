@@ -8,6 +8,7 @@ import os, re
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+import csv
 
 """ Function: Apply a mutation to a coding nucleotide sequence 
   and return the mutated sequence """
@@ -93,6 +94,8 @@ def translate_until_stop(dna_seq: str) -> str:
     return str(truncated_protein)
 
 
+""" Function: Get the wildtype DNA sequence using the transcriptID. 
+    If the versioned transcriptID is not found, then use the base transcriptID"""
 def get_transcript_seq(transcript_dict, transcript_id):
     # Try exact match first
     if transcript_id in transcript_dict:
@@ -184,7 +187,7 @@ def main():
     # build a SeqRecord for the mutated CDS
     rec = SeqRecord(
       Seq(mut_seq),
-      id=f"{transcript_id}|{hgvs}|{protein_chg}|{row['HugoSymbol']}|{row['VariantType']}",
+      id=f"{transcript_id}|{hgvs}|{protein_chg}|{row['HugoSymbol']}|{row['VariantType']}|{row['VariantInfo']}",
       description=f"{hgvs}; wt protein up to stop: {prot_seq_wt}; mutant protein up to stop: {prot_seq_mut}"
       )
     
@@ -202,29 +205,42 @@ def main():
   print(f"Generated {len(mutated_records)} mutated sequences")
 
   # After processing and updating the DataFrame
-  output_path = './data/update_OmicsSomaticMutations_with_protein_seqs.csv'
-  OmicsSomaticMutations.to_csv(output_path, index=False)
+  #output_path = './data/update2_OmicsSomaticMutations_with_protein_seqs.csv'
+  #OmicsSomaticMutations.to_csv(output_path, index=False)
 
-  # Save just the mutated sequences in a separate file 
   # Extract unique mutant protein sequences
   unique_proteins = {}
   for rec in mutated_records:
     prot_seq_mut = rec.annotations["mt_protein"]
     if prot_seq_mut not in unique_proteins:
-      # Use protein seq as key, keep the first record ID as reference
-      unique_proteins[prot_seq_mut] = rec.id
+      # Store id + sequence + WT for reference
+        #id="{transcript_id}|{hgvs}|{protein_chg}|{row['HugoSymbol']}|{row['VariantType']}""
+      id_split = rec.id.split("|")
+      transcript_id = id_split[0]
+      DNAChange = id_split[1]
+      ProteinChange = id_split[2]
+      HugoSymbol = id_split[3]
+      VariantType = id_split[4]
+      VariantInfo = id_split[5]
+      unique_proteins[prot_seq_mut] = {
+          "tid": transcript_id,
+          "DNAChange": DNAChange,
+          "ProteinChange": ProteinChange,
+          "HugoSymbol": HugoSymbol,
+          "VariantType": VariantType,
+          "VariantInfo": VariantInfo,
+          "mt_protein_seq": prot_seq_mut,
+          "wt_protein_seq": rec.annotations.get("wt_protein", "")
+      }
   
   print(f'number of unique protein seqs are {len(unique_proteins)}')
 
-  # Convert to SeqRecords in FASTA format
-  unique_records = [
-    SeqRecord(Seq(prot), id=uid, description="unique mutant protein")
-    for prot, uid in unique_proteins.items()
-  ]
-
-  # Write to fasta file
-  with open("unique_mutant_proteins.fasta", "w") as output_handle:
-    SeqIO.write(unique_records, output_handle, "fasta")
+  # Write unique mutated protein sequences to CSV
+  with open("./data/update2_unique_mutant_proteins.csv", "w", newline="") as csvfile:
+    writer = csv.DictWriter(csvfile, fieldnames=['tid', 'DNAChange', 'ProteinChange', 'HugoSymbol', 'VariantType', 'VariantInfo', 'wt_protein_seq', 'mt_protein_seq'])
+    writer.writeheader()
+    for row in unique_proteins.values():
+      writer.writerow(row)
 
     
 if __name__ == '__main__':
