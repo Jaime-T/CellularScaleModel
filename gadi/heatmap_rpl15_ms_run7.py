@@ -112,7 +112,7 @@ def generate_heatmap(protein_sequence, model, tokenizer, start_pos=1, end_pos=No
 def plot_heatmap_with_dots(data, gene, title, sequence, base_path, amino_acids, mutation_list, start_pos=1):
 
     plt.figure(figsize=(20, 5))
-    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto")
+    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto", vmin=-20, vmax=20)
     plt.ylabel("Amino Acid Mutations")
     plt.yticks(range(len(amino_acids)), amino_acids)
     plt.xlabel("Position in Protein Sequence")
@@ -146,16 +146,16 @@ def plot_heatmap_with_dots(data, gene, title, sequence, base_path, amino_acids, 
     plt.tight_layout()
 
     # Define the path
-    save_path = os.path.join(base_path, f"/{gene}/{title.replace(' ', '_')}.png")
+    save_path = os.path.join(base_path, f"{gene}/{title.replace(' ', '_')}.png")
     folder = os.path.dirname(save_path)
-
+    print(f"Saving heatmap with dots to {save_path}")
     os.makedirs(folder, exist_ok=True)
     plt.savefig(save_path, dpi=300)
     plt.close()
 
 def plot_heatmap(params, gene, data, title, sequence, base_dir, amino_acids):
     plt.figure(figsize=(20, 5))
-    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto", vmin=None, vmax=None)
+    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto", vmin=-20, vmax=20)
     plt.yticks(range(20), amino_acids)
     plt.ylabel("Amino Acid Mutations")
 
@@ -266,6 +266,8 @@ def main():
     )
     ms_mutation_list = ms_filtered['ProteinChange'].tolist()
 
+    print(f"Number of missense training mutations for {gene}: {len(ms_mutation_list)}")
+    print( "Mutations for gene", gene, ":", ms_mutation_list)
  
 
     # Generate heatmap with mutations as dots in positions
