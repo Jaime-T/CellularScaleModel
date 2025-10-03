@@ -146,7 +146,7 @@ def plot_heatmap_with_dots(data, gene, title, sequence, base_path, amino_acids, 
     plt.tight_layout()
 
     # Define the path
-    save_path = os.path.join(base_path, f"/heatmaps/{gene}/{title.replace(' ', '_')}.png")
+    save_path = os.path.join(base_path, f"/{gene}/{title.replace(' ', '_')}.png")
     folder = os.path.dirname(save_path)
 
     os.makedirs(folder, exist_ok=True)
@@ -172,10 +172,11 @@ def plot_heatmap(params, gene, data, title, sequence, base_dir, amino_acids):
     plt.tight_layout()
     
     # Define the path
-    save_path = os.path.join(base_dir, f"/heatmaps/{gene}/{title.replace(' ', '_')}.png")
+    save_path = os.path.join(base_dir, f"{gene}/{title.replace(' ', '_')}.png")
     folder = os.path.dirname(save_path)
 
     # Create the directory if it doesn't exist
+    print(f"Saving heatmap to {save_path}")
     os.makedirs(folder, exist_ok=True)
 
     # Save the figure
@@ -224,7 +225,7 @@ def main():
     ms_model = EsmForMaskedLM.from_pretrained(ms_model_path)
 
 
-    base_dir = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run7"
+    base_dir = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run7/heatmaps2"
 
     ''' 
     # Load training dataset to see what was used
