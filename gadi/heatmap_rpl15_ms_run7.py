@@ -223,6 +223,10 @@ def main():
     ms_tokenizer = EsmTokenizer.from_pretrained(ms_model_path)
     ms_model = EsmForMaskedLM.from_pretrained(ms_model_path)
 
+
+    base_dir = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run7"
+
+    ''' 
     # Load training dataset to see what was used
     base_dir = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run7"
     fname = "train_dataset.pt"
@@ -233,7 +237,7 @@ def main():
     mut_list = get_mutation_list(train_dataset, gene)
     print(f"Number of missense training mutations for {gene}: {len(mut_list)}")
     print("Mutations for gene", gene, ":", mut_list)
-
+    '''
 
     # Generate heatmaps
     base_heatmap, amino_acids = generate_heatmap(sequence, base_model, base_tokenizer)
@@ -247,7 +251,7 @@ def main():
     plot_heatmap(params, gene, ms_diff_heatmap, "Difference (Fine-tuned Missense - Original)", sequence, base_dir, amino_acids)
 
     # Load mutations and split as it was during training  
-    ''' 
+
     data_path = Path("./data")
     test_size = 0.2
     valid_size = 0.0625
@@ -260,14 +264,14 @@ def main():
         ms_train_df[ms_train_df['HugoSymbol'] == gene.upper()][['ProteinChange']] 
     )
     ms_mutation_list = ms_filtered['ProteinChange'].tolist()
-    '''
+
  
 
     # Generate heatmap with mutations as dots in positions
     plot_heatmap_with_dots(ms_diff_heatmap, gene, "Difference (Fine-tuned Missense - Original) with Mutations", 
-                           sequence, base_dir, amino_acids, mut_list, start_pos=0)
+                           sequence, base_dir, amino_acids, ms_mutation_list, start_pos=0)
     plot_heatmap_with_dots(ms_heatmap, gene, "Fine-tuned Missense Model with Mutations", sequence, 
-                           base_dir, amino_acids, mut_list, start_pos=0)
+                           base_dir, amino_acids, ms_mutation_list, start_pos=0)
 
     # Compare amino acid predictions
     masked_pos = 100
