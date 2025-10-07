@@ -329,6 +329,17 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, train_dataset, 
                 plot_heatmap(rpl_gene, rpl_fs_heatmap, f"Epoch {epoch}, Batch {batch_num}: Fine-tuned Missense Model (LLRs)", rpl_sequence, amino_acids, base_dir)
                 plot_heatmap(rpl_gene, rpl_fs_diff_heatmap, f"Epoch {epoch}, Batch {batch_num}: Difference (Fine-tuned Missense - Original)", rpl_sequence, amino_acids, base_dir)
 
+
+            # save every 1000 batches
+            if (batch_idx + 1) % 1000 == 0:  
+                batch_num = batch_idx + 1 
+                batch_dir = os.path.join(base_dir, f"epoch{epoch}_batch{batch_num}")
+                os.makedirs(batch_dir, exist_ok=True)
+                model.save_pretrained(batch_dir)
+                tokenizer.save_pretrained(batch_dir)
+                torch.save(optimizer.state_dict(), os.path.join(batch_dir, "optimizer.pt"))
+                print(f"Saved checkpoint for epoch {epoch}, batch {batch_num} in {batch_dir}\n")
+
         avg_during_train_loss = total_loss / len(train_loader)
 
         # save every epoch - just the Lora adapter weights
