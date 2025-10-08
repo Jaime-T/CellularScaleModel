@@ -309,7 +309,7 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, train_dataset, 
             if (batch_idx + 1) % 1000 == 0:  
                 batch_num = batch_idx + 1 
                 batch_loss = total_loss / batch_num
-                print(f"[Epoch {epoch}] Batch {batch_num}/{len(train_loader)} | Avg Loss: {batch_loss:.4f}")
+                print(f"Epoch {epoch}, Batch {batch_num}/{len(train_loader)} | Avg Loss during training: {batch_loss:.4f}")
 
                 # plot heatmap for myc gene 
                 myc_fs_heatmap, _ = generate_heatmap(myc_sequence, model, tokenizer)
@@ -355,7 +355,7 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, train_dataset, 
         after_train_loss = compute_loss(model, train_loader, device)  # compute train loss without dropout
 
         epoch_time = timer() - epoch_start
-        print(f"Epoch {epoch}: during train loss ={avg_during_train_loss:.4f}, after train loss={after_train_loss:.4f}, valid loss ={val_loss:.4f} | time: {epoch_time:.2f}s")
+        print(f"\n*** Epoch {epoch}: during train loss ={avg_during_train_loss:.4f}, after train loss={after_train_loss:.4f}, valid loss ={val_loss:.4f} | time: {epoch_time:.2f}s\n")
         
         loss_per_epoch.append((epoch, avg_during_train_loss, after_train_loss, val_loss))
 
