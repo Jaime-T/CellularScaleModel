@@ -7,6 +7,8 @@ Check the distribution of sequence length of mutated proteins and plot graph.
 If sequences are longer than 1022 amino acids, randomly select a 
 1022 aa window to include the mutation.
 
+Window both wildtype and mutant sequences.
+
 Categorise data into missense and frameshift variants and split into different
 dataframes. Split data into test and train set and save to files in ./data folder.
 
@@ -94,15 +96,17 @@ def slide_window(df: pd.DataFrame, window_size: int = 1022, seed: int = 42) -> p
                      containing the 1022-aa windowed sequences.
     """
     random.seed(seed)
-    windowed_seqs = []
+    mt_windowed_seqs = []
+    wt_windowed_seqs = []
     start_indexs = []
 
     for idx, row in df.iterrows():
-        seq = row['mt_protein_seq']
+        mt_seq = row['mt_protein_seq']
+        wt_seq = row['wt_protein_seq']
         hgvs = row['ProteinChange']
-        gene = row['HugoSymbol']
-        seq_len = len(seq)
-        windowed_seq = seq  # default is full sequence
+        seq_len = max(len(mt_seq), len(wt_seq))
+        mt_windowed_seq = mt_seq  # default is full sequence
+        wt_windowed_seq = wt_seq  # default is full sequence
         start = 0 # default is start at 0
 
         # Extract mutation position using regex (e.g. p.A27K or p.A32VfsTer5)
@@ -121,15 +125,18 @@ def slide_window(df: pd.DataFrame, window_size: int = 1022, seed: int = 42) -> p
                         start = max(0, seq_len - window_size)
                     else:
                         start = random.randint(min_start, max_start)
-                    windowed_seq = seq[start:start + window_size]
+                    mt_windowed_seq = mt_seq[start:start + window_size]
+                    wt_windowed_seq = wt_seq[start:start + window_size]
 
             except ValueError:
                 pass  # fallback to full sequence on parsing error
-        windowed_seqs.append(windowed_seq)
+        mt_windowed_seqs.append(mt_windowed_seq)
+        wt_windowed_seqs.append(wt_windowed_seq)
         start_indexs.append(start)
 
     df = df.copy()
-    df['windowed_seq'] = windowed_seqs
+    df['wt_windowed_seq'] = wt_windowed_seqs
+    df['mt_windowed_seq'] = mt_windowed_seqs
     df['start_index'] = start_indexs
     return df
 
@@ -161,7 +168,7 @@ def main():
     df = slide_window(df, window_size, seed)
 
     # Save as a new file to keep the original safe
-    df.to_csv("./data/update2_windowed_unique_mutant_proteins.csv", index=False)
+    df.to_csv("./data/update3_windowed_unique_mutant_proteins.csv", index=False)
 
     # Filter df by the variant type: missense and frameshift 
     ms_df = filter_missense(df) 
@@ -180,9 +187,9 @@ def main():
     data_path.mkdir(parents=True, exist_ok=True)
     
     # Save
-    df.to_parquet(data_path / "update2_all_samples.parquet")
-    ms_df.to_parquet(data_path / "update2_all_ms_samples.parquet")
-    fs_df.to_parquet(data_path / "update2_all_fs_samples.parquet")
+    df.to_parquet(data_path / "update3_all_samples.parquet")
+    ms_df.to_parquet(data_path / "update3_all_ms_samples.parquet")
+    fs_df.to_parquet(data_path / "update3_all_fs_samples.parquet")
 
 if __name__ == '__main__':
     main()
