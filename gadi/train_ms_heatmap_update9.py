@@ -40,6 +40,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 import torch.nn.functional as F
 import csv
+from itertools import zip_longest
 
 class TorchDataset(Dataset):
     def __init__(self, data):
@@ -166,10 +167,6 @@ def compute_loss(model, data_loader, device):
             outputs = model(**batch)
             total_loss += outputs.loss.item()
 
-            if (i + 1) % 1000 == 0:  
-                batch_num = i + 1 
-                batch_val_loss = total_loss / batch_num
-                print(f"Batch {batch_num}/{len(data_loader)} | Avg Loss: {batch_val_loss:.4f}")
     return total_loss / len(data_loader)
 
 def plot_loss(loss_per_epoch, descr, base_dir):
@@ -259,7 +256,8 @@ def plot_heatmap(gene, data, title, sequence, amino_acids, base_dir):
     print(f"Saved {gene} heatmap to {save_path}")
     plt.close() 
 
-def train_model(tokenizer, base_model, frozen_base_model, descr, train_dataset, valid_dataset, 
+def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data, wt_train_data, 
+                mut_valid_data, wt_valid_data,
                 lora_config, batch_size=6, max_epochs=20, lr=5e-5, 
                 patience=3,min_delta=1e-4):
     
@@ -286,25 +284,34 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, train_dataset, 
     best_val_loss = float("inf")
     no_improve = 0
 
-    # save the raw datasets
-    torch.save(train_dataset, os.path.join(base_dir, "train_dataset.pt"))
-    torch.save(valid_dataset, os.path.join(base_dir, "valid_dataset.pt"))
+    # save the current shuffle order so can reproduce
+    mut_train_indices = torch.randperm(len(mut_train_data)) 
+    torch.save(mut_train_indices, os.path.join(base_dir, "mut_train_indices.pt"))
+    mut_train_shuffled = Subset(mut_train_data, mut_train_indices)
 
     # save the current shuffle order so can reproduce
-    train_indices = torch.randperm(len(train_dataset)) 
-    torch.save(train_indices, os.path.join(base_dir, "train_indices.pt"))
-    train_dataset_shuffled = Subset(train_dataset, train_indices)
+    wt_train_indices = torch.randperm(len(wt_train_data)) 
+    torch.save(wt_train_indices, os.path.join(base_dir, "wt_train_indices.pt"))
+    wt_train_shuffled = Subset(wt_train_data, wt_train_indices)
 
-    # loaders
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset_shuffled, batch_size=batch_size, shuffle=False, pin_memory=True
+    # Training set data loaders
+    mut_train_loader = torch.utils.data.DataLoader(
+        mut_train_shuffled, batch_size=batch_size, shuffle=False, pin_memory=True
     )
 
-    valid_loader = DataLoader(
-        valid_dataset, batch_size=batch_size,shuffle=False, pin_memory=True
+    wt_train_loader = torch.utils.data.DataLoader(
+        wt_train_shuffled, batch_size=batch_size, shuffle=False, pin_memory=True
     )
 
-    print(f"Batch size: {batch_size}, Batches per epoch: {len(train_loader)}")
+    # Validation set data loaders
+    mut_valid_loader = DataLoader(
+        mut_valid_data, batch_size=batch_size,shuffle=False, pin_memory=True
+    )
+    wt_valid_loader = DataLoader(
+        wt_valid_data, batch_size=batch_size,shuffle=False, pin_memory=True
+    )
+
+    print(f"Batch size: {batch_size} x2 = {batch_size *2}, Batches per epoch: mutants {len(mut_train_loader)}, wildtype {len(wt_train_loader)}")
 
     # make heatmaps for frozen model:
 
@@ -331,13 +338,23 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, train_dataset, 
 
         print(f"\nStarting training for epoch {epoch}...")
         epoch_start = timer()
-        model.train()
         total_loss = 0
 
-        for batch_idx, batch in enumerate(train_loader):
-            batch = {k: v.to(device, non_blocking=True) for k, v in batch.items()}
+        for batch_idx, (mut_batch, wt_batch) in enumerate(zip(mut_train_loader, wt_train_loader)):
+
+            model.train()
+            # Move to device
+            mut_batch = {k: v.to(device, non_blocking=True) for k, v in mut_batch.items()}
+            wt_batch = {k: v.to(device, non_blocking=True) for k, v in wt_batch.items()}
+
+            # Combine batches (assumes tensors of same shape except for batch dimension)
+            combined_batch = {
+                k: torch.cat([mut_batch[k], wt_batch[k]], dim=0)
+                for k in mut_batch.keys()
+            }
+
             optimizer.zero_grad(set_to_none=True)
-            outputs = model(**batch)
+            outputs = model(**combined_batch)
             loss = outputs.loss
             loss.backward()
             optimizer.step()
@@ -350,7 +367,7 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, train_dataset, 
             if (batch_idx + 1) % 1000 == 0:  
                 batch_num = batch_idx + 1 
                 batch_loss = total_loss / batch_num
-                print(f"Epoch {epoch}, Batch {batch_num}/{len(train_loader)} | Avg Loss during training: {batch_loss:.4f}")
+                print(f"Epoch {epoch}, Batch {batch_num}/{(min(len(mut_train_loader), len(wt_train_loader)))} | Avg Loss during training: {batch_loss:.4f}")
 
                 # plot heatmap for myc gene 
                 myc_fs_heatmap, _ = generate_heatmap(myc_sequence, model, tokenizer)
@@ -370,6 +387,28 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, train_dataset, 
                 plot_heatmap(rpl_gene, rpl_fs_heatmap, f"Epoch {epoch}, Batch {batch_num}: Fine-tuned Missense Model (LLRs)", rpl_sequence, amino_acids, base_dir)
                 plot_heatmap(rpl_gene, rpl_fs_diff_heatmap, f"Epoch {epoch}, Batch {batch_num}: Difference (Fine-tuned Missense - Original)", rpl_sequence, amino_acids, base_dir)
 
+                # Compute loss on validation set so far
+                # MT val set 
+                mut_val_loss = compute_loss(model, mut_valid_loader, device)
+
+                # WT val set 
+                wt_val_loss = compute_loss(model, wt_valid_loader, device)
+
+                # combined MT+WT val set
+                combine_val_loader = DataLoader(torch.utils.data.ConcatDataset([mut_valid_data, wt_valid_data]), batch_size=batch_size*2, shuffle=False, pin_memory=True)
+                combined_loss = compute_loss(model, combine_val_loader, device)
+                
+                print(f"Epoch {epoch}, Batch {batch_num} | Validation Loss - Mutant: {mut_val_loss:.4f}, Wildtype: {wt_val_loss:.4f}, Combined: {combined_loss:.4f}\n")
+
+                # Save loss values so far in a file
+                temp_loss_file = os.path.join(base_dir, "temp_loss_per_batch.csv")
+                with open(temp_loss_file, "a", newline="") as f:
+                    writer = csv.writer(f)
+                    if f.tell() == 0:  # Write header if file is empty
+                        writer.writerow(["epoch", "batch", "during_train_loss", "mut_val_loss", "wt_val_loss", "combined_val_loss"])
+                    writer.writerow([epoch, batch_num, batch_loss, mut_val_loss, wt_val_loss, combined_loss])
+                print(f"Saved temporary loss values to {temp_loss_file}\n")
+
 
             # save every 1000 batches
             if (batch_idx + 1) % 1000 == 0:  
@@ -381,7 +420,7 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, train_dataset, 
                 torch.save(optimizer.state_dict(), os.path.join(batch_dir, "optimizer.pt"))
                 print(f"Saved checkpoint for epoch {epoch}, batch {batch_num} in {batch_dir}\n")
 
-        avg_during_train_loss = total_loss / len(train_loader)
+        avg_during_train_loss = total_loss / (min(len(mut_train_loader), len(wt_train_loader)))
 
         # save every epoch - just the Lora adapter weights
         epoch_dir = os.path.join(base_dir, f"epoch{epoch}")
@@ -391,14 +430,25 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, train_dataset, 
         torch.save(optimizer.state_dict(), os.path.join(epoch_dir, "optimizer.pt"))
         print(f"Saved checkpoint for epoch {epoch} in {epoch_dir}\n")
 
-        # Validation
-        val_loss  = compute_loss(model, valid_loader, device)
-        after_train_loss = compute_loss(model, train_loader, device)  # compute train loss without dropout
 
         epoch_time = timer() - epoch_start
-        print(f"\n*** Epoch {epoch}: during train loss ={avg_during_train_loss:.4f}, after train loss={after_train_loss:.4f}, valid loss ={val_loss:.4f} | time: {epoch_time:.2f}s\n")
+
+        # Compute loss on validation set after each epoch
+        # MT val set 
+        mut_val_loss = compute_loss(model, mut_valid_loader, device)
+
+        # WT val set 
+        wt_val_loss = compute_loss(model, wt_valid_loader, device)
+
+        # combined MT+WT val set
+        combine_val_loader = DataLoader(torch.utils.data.ConcatDataset([mut_valid_data, wt_valid_data]), batch_size=batch_size*2, shuffle=False, pin_memory=True)
+        combined_loss = compute_loss(model, combine_val_loader, device)
         
-        loss_per_epoch.append((epoch, avg_during_train_loss, after_train_loss, val_loss))
+        print(f"Epoch {epoch}: Validation Loss - Mutant: {mut_val_loss:.4f}, Wildtype: {wt_val_loss:.4f}, Combined: {combined_loss:.4f}\n")
+
+        print(f"Epoch {epoch}: during train loss ={avg_during_train_loss:.4f} | time: {epoch_time:.2f}s\n")
+        
+        loss_per_epoch.append((epoch, mut_val_loss, wt_val_loss, combined_loss, avg_during_train_loss))
 
         # plot heatmap for myc gene 
         myc_fs_heatmap, _ = generate_heatmap(myc_sequence, model, tokenizer)
@@ -490,20 +540,12 @@ def main():
     wt_train_tokenized = random_tokenize_and_mask_seqs(ms_train_df, tokenizer, window_size)
     wt_train_data = TorchDataset(wt_train_tokenized)
 
-    # Combine into one dataset, half mutant, half wildtype
-    # Or, combine during training loop?
-    combined_train_data = torch.utils.data.ConcatDataset([mut_train_data, wt_train_data])
-    print(f"Combined train dataset size: {len(combined_train_data)}")
-
     # Same for Validation data
     mut_valid_tokenized = mut_tokenize_and_mask_seqs(ms_valid_df, tokenizer, window_size)
     mut_valid_data = TorchDataset(mut_valid_tokenized)
 
     wt_valid_tokenized = random_tokenize_and_mask_seqs(ms_valid_df, tokenizer, window_size)
     wt_valid_data = TorchDataset(wt_valid_tokenized)
-
-    combined_valid_data = torch.utils.data.ConcatDataset([mut_valid_data, wt_valid_data])
-    print(f"Combined valid dataset size: {len(combined_valid_data)}")
 
     # Set up LoRA
     lora_config = LoraConfig(
@@ -517,7 +559,7 @@ def main():
 
     t6 = timer()
     print('\n\nStarting training!')
-    train_model(tokenizer, base_model, frozen_base_model, descr, combined_train_data, combined_valid_data, lora_config, batch_size, max_epochs)
+    train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data, wt_train_data, mut_valid_data, wt_valid_data, lora_config, batch_size, max_epochs)
 
     t7 = timer()
     print(f"Total Time for training model: {t7 - t6:.4f} seconds")
