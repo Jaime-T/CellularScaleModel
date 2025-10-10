@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
 """
+
+Using automatic mixed precision (AMP) for training with torch.cuda.amp
+16 batch size total (8 mutation, 8 wildtype)
 Train on half new mutation data (mask mutation position) + half old wildtype data (random masking)
 Compute 3 loss values: on new mutation data, on old wildtype data, combined
 
@@ -41,6 +44,7 @@ from tqdm import tqdm
 import torch.nn.functional as F
 import csv
 from itertools import zip_longest
+from torch.cuda.amp import autocast, GradScaler
 
 class TorchDataset(Dataset):
     def __init__(self, data):
@@ -312,7 +316,7 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
     )
 
     print(f"Batch size: {batch_size} x2 = {batch_size *2}, Batches per epoch: mutants {len(mut_train_loader)}, wildtype {len(wt_train_loader)}")
-
+    
     # make heatmaps for frozen model:
 
         # myc
@@ -332,7 +336,8 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
     rpl_sequence = "MGAYKYIQELWRKKQSDVMRFLLRVRCWQYRQLSALHRAPRPTRPDKARRLGYKAKQGYVIYRIRVRRGGRKRPVPKGATYGKPVHHGVNQLKFARSLQSVAEERAGRHCGALRVLNSYWVGEDSTYKFFEVILIDPFHKAIRRNPDTQWITKPVHKHREMRGLTSAGRKSRGLGKGHKFHHTIGGSRRAAWRRRNTLQLHRYR"
     rpl_base_heatmap, amino_acids = generate_heatmap(rpl_sequence, frozen_base_model, tokenizer)
     plot_heatmap(rpl_gene, rpl_base_heatmap, f"Original ESM2 Model for {rpl_gene} gene (LLRs)", rpl_sequence, amino_acids, base_dir)
-                
+    
+    scaler = GradScaler()
     # -- Training loop --
     for epoch in range(max_epochs):
 
@@ -354,12 +359,19 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
             }
 
             optimizer.zero_grad(set_to_none=True)
-            outputs = model(**combined_batch)
-            loss = outputs.loss
-            loss.backward()
-            optimizer.step()
+
+            with autocast():
+                outputs = model(**combined_batch)
+                loss = outputs.loss
+
             total_loss += loss.item()
 
+            # Scaled backward pass
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+    
+            
             # save progress every batch
             torch.save({"epoch": epoch, "batch_idx": batch_idx}, progress_file)
 
