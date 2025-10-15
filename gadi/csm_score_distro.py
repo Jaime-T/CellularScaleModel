@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from plotnine import ggplot, aes, geom_density, theme_minimal
 import re
 
-def compute_csm_score(csm_model, tokenizer, mutation, sequence):
+def compute_mut_score(model, tokenizer, mutation, sequence):
     wt, pos, mt = mutation[0], int(mutation[1:-1]), mutation[-1]
     # Adjust for 0-based indexing
     pos -= 1
@@ -19,7 +19,7 @@ def compute_csm_score(csm_model, tokenizer, mutation, sequence):
     
     inputs = tokenizer(mutated_sequence, return_tensors="pt")
     with torch.no_grad():
-        outputs = csm_model(**inputs)
+        outputs = model(**inputs)
     
     logits = outputs.logits
     log_probs = torch.log_softmax(logits, dim=-1)
@@ -27,46 +27,44 @@ def compute_csm_score(csm_model, tokenizer, mutation, sequence):
     # Get the log probability of the mutated amino acid at the mutation position
     aa_index = tokenizer.convert_tokens_to_ids(mt)
     score = log_probs[0, pos+1, aa_index].item()  # +1 for special token offset
-    print(f"Computed CSM score for mutation {mutation}: {score}")
-    print('testing ')
-    print(tokenizer(sequence)["input_ids"][:10])
+    print(f"Computed score for mutation {mutation}: {score}")
     return score
 
-def mut_distro_plot(csm_data):
+def mut_distro_plot(csm_data, xlabel="csm_score", num=1):
 
     # method 1: seaborn kdeplot
     plt.figure(figsize=(8, 5))
     sns.kdeplot(
         data=csm_data,
-        x="csm_score",
+        x=xlabel,
         hue="clinvar_label",
         fill=True,
         alpha=0.3
     )
 
-    plt.title("Density of CSM Scores by ClinVar Label")
-    plt.xlabel("csm_score")
+    plt.title(f"Density of {xlabel} by ClinVar Label")
+    plt.xlabel(xlabel)
     plt.ylabel("Density")
     sns.despine()
-    plt.savefig("/g/data/gi52/jaime/trained/esm2_650M_model/missense/run9.1/distro_curves/tp53_csm_score_plot1.png", dpi=300)
+    save_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/missense/run9.1/distro_curves/tp53_{xlabel}_plot{num}-1.png"
+    plt.savefig(save_path, dpi=300)
     plt.close()
-    print("Saved to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run9.1/distro_curves/tp53_csm_score_plot1.png")
+    print(f"Saved to {save_path}")
 
     # method 2: plotnine (ggplot2-like)
     p = (
-        ggplot(csm_data, aes(x="csm_score", color="clinvar_label", fill="clinvar_label"))
+        ggplot(csm_data, aes(x=xlabel, color="clinvar_label", fill="clinvar_label"))
         + geom_density(alpha=0.3)
         + theme_minimal()
     )
-    p.save("/g/data/gi52/jaime/trained/esm2_650M_model/missense/run9.1/distro_curves/tp53_csm_score_plot2.png", width=8, height=5, dpi=300)
-    print("Saved to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run9.1/distro_curves/tp53_csm_score_plot2.png")
+    save_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/missense/run9.1/distro_curves/tp53_{xlabel}_plot{num}-2.png"
+    p.save(save_path, width=8, height=5, dpi=300)
+    print(f"Saved to {save_path}")
 
 
 def main():
 
-    # Load ESM base model
-
-    # Load original ESM-2 model
+    # Load ESM2 base model and tokenizer
     base_model_path = "/g/data/gi52/jaime/esm2_650M_model"
     tokenizer = EsmTokenizer.from_pretrained(base_model_path)
     base_model = EsmForMaskedLM.from_pretrained(base_model_path)
@@ -96,13 +94,19 @@ def main():
         if pd.isna(mutation) or len(mutation) < 3:
             continue
         try:
-            score = compute_csm_score(csm_model, tokenizer, mutation, tp53)
-            tp53_clinvar.at[row.Index, 'csm_score'] = score
+            csm_score = compute_mut_score(csm_model, tokenizer, mutation, tp53)
+            tp53_clinvar.loc[row.Index, 'csm_score'] = csm_score
+
+            # TO DO: add esm score and compare 
+            esm_score = compute_mut_score(base_model, tokenizer, mutation, tp53)
+            tp53_clinvar.loc[row.Index, 'esm_score'] = esm_score
+
         except ValueError as e:
             print(e)
             tp53_clinvar.loc[row.Index, 'csm_score'] = None  
+            tp53_clinvar.loc[row.Index, 'esm_score'] = None
 
-    tp53_clinvar.to_csv("/g/data/gi52/jaime/clinvar/tp53_clinvar_with_csm_scores.csv", index=False)
+    tp53_clinvar.to_csv("/g/data/gi52/jaime/clinvar/tp53_clinvar_csm_esm_scores.csv", index=False)
 
     # rename columns for plotting
     csm_data = tp53_clinvar.rename(
@@ -110,7 +114,13 @@ def main():
     )
 
     # Graph the distribution of scores for each ClinVar category
-    mut_distro_plot(csm_data)
+    mut_distro_plot(csm_data, xlabel="csm_score", num=1)
+    mut_distro_plot(csm_data, xlabel="esm_score", num=2)
+
+    # filter out only Pathogenic, Benign, and Uncertain Significance
+    filtered_data = csm_data[csm_data['clinvar_label'].isin(['Pathogenic', 'Benign', 'Uncertain significance'])]
+    mut_distro_plot(filtered_data, xlabel="csm_score", num=3)
+    mut_distro_plot(filtered_data, xlabel="esm_score", num=4)
 
 
 
