@@ -91,20 +91,21 @@ def main():
     # Calculate the CSM scores for each mutation and append to dataframe
     for row in tp53_clinvar.itertuples():
         mutation = row.ProteinChange
+        idx = row.Index
+
         if pd.isna(mutation) or len(mutation) < 3:
             continue
         try:
             csm_score = compute_mut_score(csm_model, tokenizer, mutation, tp53)
-            tp53_clinvar.loc[row.Index, 'csm_score'] = csm_score
-
-            # TO DO: add esm score and compare 
             esm_score = compute_mut_score(base_model, tokenizer, mutation, tp53)
-            tp53_clinvar.loc[row.Index, 'esm_score'] = esm_score
+
+            tp53_clinvar.loc[idx, 'csm_score'] = csm_score
+            tp53_clinvar.loc[idx, 'esm_score'] = esm_score
 
         except ValueError as e:
             print(e)
-            tp53_clinvar.loc[row.Index, 'csm_score'] = None  
-            tp53_clinvar.loc[row.Index, 'esm_score'] = None
+            tp53_clinvar.loc[idx, 'csm_score'] = None  
+            tp53_clinvar.loc[idx, 'esm_score'] = None
 
     tp53_clinvar.to_csv("/g/data/gi52/jaime/clinvar/tp53_clinvar_csm_esm_scores.csv", index=False)
 
