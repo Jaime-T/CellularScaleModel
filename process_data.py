@@ -74,6 +74,16 @@ def analyse(df: object):
     top = 10
     print(f"\nTop {top}: {hugo_count.head(top)}\n")
 
+    # Check for potential hotspot mutations
+    hotspot_counts = df['DNAChange'].value_counts()
+
+    # Find which genes have the most recurrent mutations
+    recurrent_mutations = df[df['DNAChange'].isin(hotspot_counts[hotspot_counts > 1].index)]
+    gene_recurrence = recurrent_mutations['HugoSymbol'].value_counts()  
+    print("Genes with most recurrent mutations:")
+    print(gene_recurrence.head(20).to_string())
+
+
 def filter_empty(df: object):
     # Filter out null/empty mutant protein sequenves
     df = df[df['mt_protein_seq'].notnull()].copy()
@@ -149,7 +159,8 @@ def filter_frameshift(df: pd.DataFrame):
 def main():
 
     # Load data 
-    csv_path = './data/update2_unique_mutant_proteins.csv'
+    #csv_path = './data/update2_unique_mutant_proteins.csv'
+    csv_path = './data/update_OmicsSomaticMutations_with_protein_seqs.csv' 
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"File not found: {csv_path}")
     df = pd.read_csv(csv_path, low_memory=False)
@@ -168,7 +179,8 @@ def main():
     df = slide_window(df, window_size, seed)
 
     # Save as a new file to keep the original safe
-    df.to_csv("./data/update3_windowed_unique_mutant_proteins.csv", index=False)
+    #df.to_csv("./data/update3_windowed_unique_mutant_proteins.csv", index=False)
+    df.to_csv("./data/update4_windowed_mutant_proteins.csv", index=False)
 
     # Filter df by the variant type: missense and frameshift 
     ms_df = filter_missense(df) 
@@ -187,9 +199,14 @@ def main():
     data_path.mkdir(parents=True, exist_ok=True)
     
     # Save
-    df.to_parquet(data_path / "update3_all_samples.parquet")
-    ms_df.to_parquet(data_path / "update3_all_ms_samples.parquet")
-    fs_df.to_parquet(data_path / "update3_all_fs_samples.parquet")
+
+    #df.to_parquet(data_path / "update3_all_samples.parquet")
+    #ms_df.to_parquet(data_path / "update3_all_ms_samples.parquet")
+    #fs_df.to_parquet(data_path / "update3_all_fs_samples.parquet")
+
+    df.to_parquet(data_path / "update4_all_samples.parquet")
+    ms_df.to_parquet(data_path / "update4_all_ms_samples.parquet")
+    fs_df.to_parquet(data_path / "update4_all_fs_samples.parquet")
 
 if __name__ == '__main__':
     main()
