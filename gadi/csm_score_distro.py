@@ -9,25 +9,29 @@ from plotnine import ggplot, aes, geom_density, theme_minimal
 import re
 
 def compute_mut_score(model, tokenizer, mutation, sequence):
+    model.eval()
+
     wt, pos, mt = mutation[0], int(mutation[1:-1]), mutation[-1]
     # Adjust for 0-based indexing
     pos -= 1
     if sequence[pos] != wt:
         raise ValueError(f"Wildtype mismatch at position {pos+1} for mutation {mutation}: expected {sequence[pos]}, found {wt}")
     
-    mutated_sequence = sequence[:pos] + mt + sequence[pos+1:]
-    
-    inputs = tokenizer(mutated_sequence, return_tensors="pt")
+    # Tokenize the sequence
+    encoded = tokenizer(sequence, return_tensors="pt")
+    input_ids = encoded["input_ids"]
+
+    # Mask the site 
+    masked_input_ids = input_ids.clone()
+    masked_input_ids[0, pos + 1] = tokenizer.mask_token_id  # +1 due to BOS token
+
     with torch.no_grad():
-        outputs = model(**inputs)
-    
-    logits = outputs.logits
-    log_probs = torch.log_softmax(logits, dim=-1)
+        logits = model(masked_input_ids).logits
+        log_probs = torch.nn.functional.log_softmax(logits[0, pos + 1], dim=0)
     
     # Get the log probability of the mutated amino acid at the mutation position
     aa_index = tokenizer.convert_tokens_to_ids(mt)
-    score = log_probs[0, pos+1, aa_index].item()  # +1 for special token offset
-    print(f"Computed score for mutation {mutation}: {score}")
+    score = log_probs[aa_index].item()
     return score
 
 def mut_distro_plot(csm_data, xlabel="csm_score", num=1):
@@ -46,7 +50,7 @@ def mut_distro_plot(csm_data, xlabel="csm_score", num=1):
     plt.xlabel(xlabel)
     plt.ylabel("Density")
     sns.despine()
-    save_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/missense/run9.1/distro_curves/tp53_{xlabel}_plot{num}-1.png"
+    save_path = f"/g/data/gi52/jaime/clinvar/run9.1/distro_curves/tp53_{xlabel}_plot{num}-1.png"
     plt.savefig(save_path, dpi=300)
     plt.close()
     print(f"Saved to {save_path}")
@@ -57,7 +61,7 @@ def mut_distro_plot(csm_data, xlabel="csm_score", num=1):
         + geom_density(alpha=0.3)
         + theme_minimal()
     )
-    save_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/missense/run9.1/distro_curves/tp53_{xlabel}_plot{num}-2.png"
+    save_path = f"/g/data/gi52/jaime/clinvar/run9.1/distro_curves/tp53_{xlabel}_plot{num}-2.png"
     p.save(save_path, width=8, height=5, dpi=300)
     print(f"Saved to {save_path}")
 
@@ -72,15 +76,48 @@ def main():
     # Load adapters for CSM finetuned model 
     csm_adapter_path = "/g/data/gi52/jaime/trained/esm2_650M_model/missense/run9.1/epoch0_batch11000"
 
-    # Load the PEFT adapter configuration
-    peft_config = PeftConfig.from_pretrained(csm_adapter_path)
-
     # Load the adapter into the model
-    model = PeftModel.from_pretrained(base_model, csm_adapter_path)
+    model = PeftModel.from_pretrained(base_model, csm_adapter_path, is_trainable=False )
 
     # Merge the adapter weights into the base model
     csm_model = model.merge_and_unload()
     csm_model.eval()
+
+    print(csm_model)
+
+
+     # debugging print to verify adapter contents
+
+     # Point directly to the adapter weights file
+    import os
+    from safetensors.torch import load_file
+    adapter_weights = os.path.join(
+        "/g/data/gi52/jaime/trained/esm2_650M_model/missense/run9.1/epoch0_batch11000",
+        "adapter_model.safetensors"
+    )
+
+    state_dict = load_file(adapter_weights)
+    print("Number of keys:", len(state_dict.keys()))
+    print("Example keys:", list(state_dict.keys())[:5])
+
+    for name, module in base_model.named_modules():
+        if "Linear" in str(type(module)):
+            print(name)
+
+    from copy import deepcopy
+
+    # Load base model separately for comparison
+    base_model_fresh = EsmForMaskedLM.from_pretrained(base_model_path)
+
+    # Compare parameters between merged model and base
+    diff_count = 0
+    for (name1, p1), (name2, p2) in zip(base_model_fresh.named_parameters(), csm_model.named_parameters()):
+        if not torch.allclose(p1, p2):
+            diff_count += 1
+            break
+
+    print("Any parameter differences?", diff_count > 0)
+
 
     # Load dataset with ClinVar labels and mutations
     tp53_clinvar = pd.read_csv("/g/data/gi52/jaime/clinvar/clinvar_tp53_mutations_1letter.csv")
@@ -89,23 +126,32 @@ def main():
     tp53 = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD"
     
     # Calculate the CSM scores for each mutation and append to dataframe
+
     for row in tp53_clinvar.itertuples():
+        
         mutation = row.ProteinChange
         idx = row.Index
 
-        if pd.isna(mutation) or len(mutation) < 3:
+        if pd.isna(mutation):
             continue
         try:
             csm_score = compute_mut_score(csm_model, tokenizer, mutation, tp53)
-            esm_score = compute_mut_score(base_model, tokenizer, mutation, tp53)
+            esm_score = compute_mut_score(base_model_fresh, tokenizer, mutation, tp53)
+            print(f"Mutation: {mutation}, CSM Score: {csm_score}, ESM Score: {esm_score}")
 
             tp53_clinvar.loc[idx, 'csm_score'] = csm_score
             tp53_clinvar.loc[idx, 'esm_score'] = esm_score
+
 
         except ValueError as e:
             print(e)
             tp53_clinvar.loc[idx, 'csm_score'] = None  
             tp53_clinvar.loc[idx, 'esm_score'] = None
+
+        # save intermediate results
+        if idx % 50 == 0:
+            print(f"Processed {idx} mutations, saving intermediate results...")
+            tp53_clinvar.to_csv(f"/g/data/gi52/jaime/clinvar/run9.1_tp53_clinvar_csm_esm_scores_intermediate{idx}.csv", index=False)
 
     tp53_clinvar.to_csv("/g/data/gi52/jaime/clinvar/tp53_clinvar_csm_esm_scores.csv", index=False)
 
