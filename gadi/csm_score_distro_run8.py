@@ -15,6 +15,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from plotnine import ggplot, aes, geom_density, theme_minimal
 import re
+import os
 
 def compute_mut_score(model, tokenizer, mutation, sequence):
     model.eval()
@@ -44,6 +45,11 @@ def compute_mut_score(model, tokenizer, mutation, sequence):
 
 def mut_distro_plot(csm_data, xlabel="csm_score", num=1):
 
+    save_dir = "/g/data/gi52/jaime/clinvar/run8_ms/distro_curves"
+
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
     # method 1: seaborn kdeplot
     plt.figure(figsize=(8, 5))
     sns.kdeplot(
@@ -58,7 +64,7 @@ def mut_distro_plot(csm_data, xlabel="csm_score", num=1):
     plt.xlabel(xlabel)
     plt.ylabel("Density")
     sns.despine()
-    save_path = f"/g/data/gi52/jaime/clinvar/run8_ms/distro_curves/tp53_{xlabel}_plot{num}-1.png"
+    save_path = os.join(save_dir, f"tp53_{xlabel}_plot{num}-1.png")
     plt.savefig(save_path, dpi=300)
     plt.close()
     print(f"Saved to {save_path}")
@@ -69,7 +75,7 @@ def mut_distro_plot(csm_data, xlabel="csm_score", num=1):
         + geom_density(alpha=0.3)
         + theme_minimal()
     )
-    save_path = f"/g/data/gi52/jaime/clinvar/run8_ms/distro_curves/tp53_{xlabel}_plot{num}-2.png"
+    save_path = os.join(save_dir, f"tp53_{xlabel}_plot{num}-2.png")
     p.save(save_path, width=8, height=5, dpi=300)
     print(f"Saved to {save_path}")
 
@@ -133,8 +139,12 @@ def main():
     # tp53 protein sequence
     tp53 = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD"
     
-    # Calculate the CSM scores for each mutation and append to dataframe
+    # save path 
+    save_dir = "/g/data/gi52/jaime/clinvar/run8_ms"
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
 
+    # Calculate the CSM scores for each mutation and append to dataframe
     for row in tp53_clinvar.itertuples():
         
         mutation = row.ProteinChange
@@ -159,9 +169,12 @@ def main():
         # save intermediate results
         if idx % 500 == 0:
             print(f"Processed {idx} mutations, saving intermediate results...")
-            tp53_clinvar.to_csv(f"/g/data/gi52/jaime/clinvar/run8_ms/tp53_clinvar_csm_esm_scores_intermediate{idx}.csv", index=False)
+            save_path = os.path.join(save_dir, f"tp53_clinvar_csm_esm_scores_intermediate{idx}.csv")
+            tp53_clinvar.to_csv(save_path, index=False)
 
-    tp53_clinvar.to_csv("/g/data/gi52/jaime/clinvar/run8_ms/tp53_clinvar_csm_esm_scores_final.csv", index=False)
+    # Save the final results
+    save_path = os.path.join(save_dir, "tp53_clinvar_csm_esm_scores_final.csv")
+    tp53_clinvar.to_csv(save_path, index=False)
 
     # rename columns for plotting
     csm_data = tp53_clinvar.rename(
