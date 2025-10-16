@@ -104,7 +104,7 @@ def random_tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022, mlm
 def mut_tokenize_and_mask_seqs(batch, tokenizer, col='mt_windowed_seq', window_size: int = 1022):
     # Tokenize the batch
     encoded_seqs = tokenizer(
-        batch[col].tolist(),
+        batch[{col}].tolist(),
         padding="max_length",
         truncation=True,
         max_length=min(window_size, tokenizer.model_max_length),
@@ -499,11 +499,11 @@ def main():
     '''
        
     # Tokenize and mask mutant sequences (mask the position where mutation occurs)
-    mut_train_tokenized = mut_tokenize_and_mask_seqs(ms_train_df, tokenizer, window_size)
+    mut_train_tokenized = mut_tokenize_and_mask_seqs(ms_train_df, tokenizer, 'mt_windowed_seq', window_size)
     mut_train_data = TorchDataset(mut_train_tokenized)
 
     # Same for Validation data
-    mut_valid_tokenized = mut_tokenize_and_mask_seqs(ms_valid_df, tokenizer, window_size)
+    mut_valid_tokenized = mut_tokenize_and_mask_seqs(ms_valid_df, tokenizer, 'mt_windowed_seq', window_size)
     mut_valid_data = TorchDataset(mut_valid_tokenized)
 
     wt_valid_tokenized = mut_tokenize_and_mask_seqs(ms_valid_df, tokenizer, 'wt_windowed_seq', window_size)
