@@ -13,9 +13,11 @@ import torch
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from plotnine import ggplot, aes, geom_density, theme_minimal
+from plotnine import ( ggplot, aes, geom_density, theme_minimal, scale_color_manual, 
+    scale_fill_manual, xlim, ylim)
 import re
 import os
+from sklearn.preprocessing import StandardScaler
 
 def compute_mut_score(model, tokenizer, mutation, sequence):
     model.eval()
@@ -45,7 +47,7 @@ def compute_mut_score(model, tokenizer, mutation, sequence):
 
 def mut_distro_plot(csm_data, xlabel="csm_score", num=1):
 
-    save_dir = "/g/data/gi52/jaime/clinvar/run8_ms/distro_curves"
+    save_dir = "/g/data/gi52/jaime/clinvar/run8_ms/distro_curves/test"
 
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -64,7 +66,7 @@ def mut_distro_plot(csm_data, xlabel="csm_score", num=1):
     plt.xlabel(xlabel)
     plt.ylabel("Density")
     sns.despine()
-    save_path = os.join(save_dir, f"tp53_{xlabel}_plot{num}-1.png")
+    save_path = os.path.join(save_dir, f"tp53_{xlabel}_plot{num}-1.png")
     plt.savefig(save_path, dpi=300)
     plt.close()
     print(f"Saved to {save_path}")
@@ -75,13 +77,65 @@ def mut_distro_plot(csm_data, xlabel="csm_score", num=1):
         + geom_density(alpha=0.3)
         + theme_minimal()
     )
-    save_path = os.join(save_dir, f"tp53_{xlabel}_plot{num}-2.png")
+    save_path = os.path.join(save_dir, f"tp53_{xlabel}_plot{num}-2.png")
+    p.save(save_path, width=8, height=5, dpi=300)
+    print(f"Saved to {save_path}")
+
+def extremity_mut_distro_plot(csm_data, xlabel="csm_score", num=1):
+
+    # Standardise the data
+    scaler = StandardScaler()
+    csm_data_standardized = scaler.fit_transform(csm_data.reshape(-1, 1)).flatten()
+
+    save_dir = "/g/data/gi52/jaime/clinvar/run8_ms/distro_curves"
+    # Custom color mapping
+    color_map = {
+        "Pathogenic": "red",
+        "Benign": "green",
+        "Uncertain significance": "yellow"
+    }
+
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    # method 1: seaborn kdeplot
+    plt.figure(figsize=(8, 5))
+    sns.kdeplot(
+        data=csm_data_standardized,
+        x=xlabel,
+        hue="clinvar_label",
+        fill=True,
+        alpha=0.3,
+        palette=color_map
+    )
+
+    plt.title(f"Density of {xlabel} by ClinVar Label")
+    plt.xlabel(xlabel)
+    plt.ylabel("Density")
+    sns.despine()
+
+    save_path = os.path.join(save_dir, f"tp53_{xlabel}_plot{num}-1.png")
+    plt.savefig(save_path, dpi=300)
+    plt.close()
+    print(f"Saved to {save_path}")
+
+    # method 2: plotnine (ggplot2-like)
+    p = (
+        ggplot(csm_data_standardized, aes(x=xlabel, color="clinvar_label", fill="clinvar_label"))
+        + geom_density(alpha=0.3)
+        + theme_minimal()
+        + scale_color_manual(values=color_map)
+        + scale_fill_manual(values=color_map)
+        + theme_minimal()
+    )
+    save_path = os.path.join(save_dir, f"tp53_{xlabel}_plot{num}-2.png")
     p.save(save_path, width=8, height=5, dpi=300)
     print(f"Saved to {save_path}")
 
 
-def main():
 
+def main():
+    '''  
     # Load ESM2 base model and tokenizer
     base_model_path = "/g/data/gi52/jaime/esm2_650M_model"
     tokenizer = EsmTokenizer.from_pretrained(base_model_path)
@@ -175,6 +229,9 @@ def main():
     # Save the final results
     save_path = os.path.join(save_dir, "tp53_clinvar_csm_esm_scores_final.csv")
     tp53_clinvar.to_csv(save_path, index=False)
+    '''
+
+    tp53_clinvar = pd.read_csv("/g/data/gi52/jaime/clinvar/run8_ms/tp53_clinvar_csm_esm_scores_final.csv")
 
     # rename columns for plotting
     csm_data = tp53_clinvar.rename(
@@ -182,13 +239,13 @@ def main():
     )
 
     # Graph the distribution of scores for each ClinVar category
-    mut_distro_plot(csm_data, xlabel="csm_score", num=1)
-    mut_distro_plot(csm_data, xlabel="esm_score", num=2)
+    #mut_distro_plot(csm_data, xlabel="csm_score", num=1)
+    #mut_distro_plot(csm_data, xlabel="esm_score", num=2)
 
     # filter out only Pathogenic, Benign, and Uncertain Significance
     filtered_data = csm_data[csm_data['clinvar_label'].isin(['Pathogenic', 'Benign', 'Uncertain significance'])]
-    mut_distro_plot(filtered_data, xlabel="csm_score", num=3)
-    mut_distro_plot(filtered_data, xlabel="esm_score", num=4)
+    extremity_mut_distro_plot(filtered_data, xlabel="csm_score", num=3)
+    extremity_mut_distro_plot(filtered_data, xlabel="esm_score", num=4)
 
 
 
