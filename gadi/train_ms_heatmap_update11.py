@@ -40,6 +40,9 @@ from tqdm import tqdm
 import torch.nn.functional as F
 import csv
 from itertools import zip_longest
+import matplotlib.colors as mcolors
+import matplotlib.image as mpimg
+
 
 class TorchDataset(Dataset):
     def __init__(self, data):
@@ -225,7 +228,60 @@ def generate_heatmap(protein_sequence, model, tokenizer, start_pos=1, end_pos=No
 
     return heatmap, amino_acids
 
-def plot_heatmap(gene, data, title, sequence, amino_acids, base_dir):
+def custom_plot_heatmap(gene, data, title, sequence, amino_acids, base_dir):
+
+    # Define the custom colormap
+    colors = [
+        (-20, "orange"),
+        (-1, "red"),
+        (0, "white"),
+        (1, "blue"),
+        (20, "cyan")
+    ]
+
+    # Create segmented colormap and normaliser
+    cmap = mcolors.LinearSegmentedColormap.from_list("custom_diverging", [c for _, c in colors])
+    norm = mcolors.TwoSlopeNorm(vmin=-20, vcenter=0, vmax=20)
+
+    plt.figure(figsize=(20, 5))
+    plt.imshow(data, cmap=cmap, norm=norm, aspect="auto")
+    plt.yticks(range(20), amino_acids)
+    plt.ylabel("Amino Acid Mutations")
+
+    seq_len = len(sequence)
+    xticks_positions = list(range(0, seq_len, 50)) # mark every 50th position
+    # ensure last position is shown too
+    if seq_len - 1 not in xticks_positions:
+        xticks_positions.append(seq_len - 1)
+    # set ticks and labels
+    plt.xticks(xticks_positions, [str(pos) for pos in xticks_positions])
+    plt.xlabel("Position in Protein Sequence")
+    plt.title(title + ' 650M')
+    plt.colorbar(label="Log Likelihood Ratio (LLR)")
+    plt.tight_layout()
+    
+    # Define the path
+    save_path = os.path.join(base_dir, f"heatmaps/{gene}/{title.replace(' ', '_')}.png")
+    folder = os.path.dirname(save_path)
+
+    # Create the directory if it doesn't exist
+    os.makedirs(folder, exist_ok=True)
+
+    # Save the figure
+    plt.savefig(save_path, dpi=300)
+    print(f"Saved {gene} heatmap to {save_path}")
+    plt.close() 
+
+def scaled_plot_heatmap(gene, data, title, sequence, amino_acids, base_dir):
+
+     # scaling data to -1 to 1
+    data_min = np.min(data)
+    data_max = np.max(data)
+    if data_max != data_min:
+        data = 2 * (data - data_min) / (data_max - data_min) - 1
+    else:
+        print("Warning: Heatmap has constant values. Skipping scaling.")
+
     plt.figure(figsize=(20, 5))
     plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto")
     plt.yticks(range(20), amino_acids)
@@ -340,7 +396,7 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
     model.to(device)
 
     # directories
-    base_dir = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run10"
+    base_dir = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run11"
     os.makedirs(base_dir, exist_ok=True)
 
     loss_file_csv = os.path.join(base_dir, "loss_per_epoch.csv")
@@ -385,19 +441,19 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
     myc_gene = "myc"
     myc_sequence = "MDFFRVVENQQPPATMPLNVSFTNRNYDLDYDSVQPYFYCDEEENFYQQQQQSELQPPAPSEDIWKKFELLPTPPLSPSRRSGLCSPSYVAVTPFSLRGDNDGGGGSFSTADQLEMVTELLGGDMVNQSFICDPDDETFIKNIIIQDCMWSGFSAAAKLVSEKLASYQAARKDSGSPNPARGHSVCSTSSLYLQDLSAAASECIDPSVVFPYPLNDSSSPKSCASQDSSAFSPSSDSLLSSTESSPQGSPEPLVLHEETPPTTSSDSEEEQEDEEEIDVVSVEKRQAPGKRSESGSPSAGGHSKPPHSPLVLKRCHVSTHQHNYAAPPSTRKDYPAAKRVKLDSVRVLRQISNNRKCTSPRSSDTEENVKRRTHNVLERQRRNELKRSFFALRDQIPELENNEKAPKVVILKKATAYILSVQAEEQKLISEEDLLRKRREQLKHKLEQLRNSCA"
     myc_base_heatmap, amino_acids = generate_heatmap(myc_sequence, frozen_base_model, tokenizer)
-    plot_heatmap(myc_gene, myc_base_heatmap, f"Original ESM2 Model for {myc_gene} gene (LLRs)", myc_sequence, amino_acids, base_dir)
+    scaled_plot_heatmap(myc_gene, myc_base_heatmap, f"Original ESM2 Model for {myc_gene} gene (LLRs)", myc_sequence, amino_acids, base_dir)
 
         # tp53
     tp53_gene = "tp53"
     tp53_sequence = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD"
     tp53_base_heatmap, amino_acids = generate_heatmap(tp53_sequence, frozen_base_model, tokenizer)
-    plot_heatmap(tp53_gene, tp53_base_heatmap, f"Original ESM2 Model for {tp53_gene} gene (LLRs)", tp53_sequence, amino_acids, base_dir)
+    scaled_plot_heatmap(tp53_gene, tp53_base_heatmap, f"Original ESM2 Model for {tp53_gene} gene (LLRs)", tp53_sequence, amino_acids, base_dir)
 
         # rpl2 - gene for negative control
     rpl_gene = "rpl2"  
     rpl_sequence = "MILKKYKPTTPSLRGLVQIDRSLLWKGDPVKKLTVGMIESAGRNNTGRITVYHRGGGHKTKYRYIDFKRSNYNIPGIVERLEYDPNRTCFIALIKDNENNFSYILAPHDLKVGDTVITGNDIDIRIGNTLPLRNIPIGTMIHNIELNPGKGGKIVRSAGSSAQLISKDENGFCMLKLPSGEYRLFPNNSLATIGILSNIDNKNIKIGKAGRSRWMGRRPIVRGVAMNPVDHPHGGGEGKTSGGRPSVTPWSWPTKGQPTRSKRKYNKLIVQRAKKKI"
     rpl_base_heatmap, amino_acids = generate_heatmap(rpl_sequence, frozen_base_model, tokenizer)
-    plot_heatmap(rpl_gene, rpl_base_heatmap, f"Original ESM2 Model for {rpl_gene} gene (LLRs)", rpl_sequence, amino_acids, base_dir)
+    scaled_plot_heatmap(rpl_gene, rpl_base_heatmap, f"Original ESM2 Model for {rpl_gene} gene (LLRs)", rpl_sequence, amino_acids, base_dir)
 
     # -- Training loop --
     for epoch in range(max_epochs):
@@ -432,20 +488,20 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
                 # plot heatmap for myc gene 
                 myc_fs_heatmap, _ = generate_heatmap(myc_sequence, model, tokenizer)
                 myc_fs_diff_heatmap = myc_fs_heatmap - myc_base_heatmap
-                plot_heatmap(myc_gene, myc_fs_heatmap, f"Epoch {epoch}, Batch {batch_num}: Fine-tuned Missense Model (LLRs)", myc_sequence, amino_acids, base_dir)
-                plot_heatmap(myc_gene, myc_fs_diff_heatmap, f"Epoch {epoch}, Batch {batch_num}: Difference (Fine-tuned Missense - Original)", myc_sequence, amino_acids, base_dir)
+                scaled_plot_heatmap(myc_gene, myc_fs_heatmap, f"Epoch {epoch}, Batch {batch_num}: Fine-tuned Missense Model (LLRs)", myc_sequence, amino_acids, base_dir)
+                custom_plot_heatmap(myc_gene, myc_fs_diff_heatmap, f"Epoch {epoch}, Batch {batch_num}: Difference (Fine-tuned Missense - Original)", myc_sequence, amino_acids, base_dir)
                 
                 # plot heatmap for tp53 gene 
                 tp53_fs_heatmap, _ = generate_heatmap(tp53_sequence, model, tokenizer)
                 tp53_fs_diff_heatmap = tp53_fs_heatmap - tp53_base_heatmap
-                plot_heatmap(tp53_gene, tp53_fs_heatmap, f"Epoch {epoch}, Batch {batch_num}: Fine-tuned Missense Model (LLRs)", tp53_sequence, amino_acids, base_dir)
-                plot_heatmap(tp53_gene, tp53_fs_diff_heatmap, f"Epoch {epoch}, Batch {batch_num}: Difference (Fine-tuned Missense - Original)", tp53_sequence, amino_acids, base_dir)
+                scaled_plot_heatmap(tp53_gene, tp53_fs_heatmap, f"Epoch {epoch}, Batch {batch_num}: Fine-tuned Missense Model (LLRs)", tp53_sequence, amino_acids, base_dir)
+                custom_plot_heatmap(tp53_gene, tp53_fs_diff_heatmap, f"Epoch {epoch}, Batch {batch_num}: Difference (Fine-tuned Missense - Original)", tp53_sequence, amino_acids, base_dir)
 
                 # plot heatmap for rpl2 gene 
                 rpl_fs_heatmap, _ = generate_heatmap(rpl_sequence, model, tokenizer)
                 rpl_fs_diff_heatmap = rpl_fs_heatmap - rpl_base_heatmap
-                plot_heatmap(rpl_gene, rpl_fs_heatmap, f"Epoch {epoch}, Batch {batch_num}: Fine-tuned Missense Model (LLRs)", rpl_sequence, amino_acids, base_dir)
-                plot_heatmap(rpl_gene, rpl_fs_diff_heatmap, f"Epoch {epoch}, Batch {batch_num}: Difference (Fine-tuned Missense - Original)", rpl_sequence, amino_acids, base_dir)
+                scaled_plot_heatmap(rpl_gene, rpl_fs_heatmap, f"Epoch {epoch}, Batch {batch_num}: Fine-tuned Missense Model (LLRs)", rpl_sequence, amino_acids, base_dir)
+                custom_plot_heatmap(rpl_gene, rpl_fs_diff_heatmap, f"Epoch {epoch}, Batch {batch_num}: Difference (Fine-tuned Missense - Original)", rpl_sequence, amino_acids, base_dir)
 
                 # Compute loss on validation set so far
                 # MT val set 
@@ -480,7 +536,7 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
                 print("ending early, for testing purposes")
                 exit()
 
-        avg_during_train_loss = total_loss / (len(mut_train_loader))
+        
 
         # save every epoch - just the Lora adapter weights
         epoch_dir = os.path.join(base_dir, f"epoch{epoch}")
@@ -502,29 +558,28 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
         
         print(f"Epoch {epoch}: Validation Loss - Mutant: {mut_val_loss:.4f}, Wildtype: {wt_val_loss:.4f}\n")
 
-        print(f"Epoch {epoch}: during train loss ={avg_during_train_loss:.4f} | time: {epoch_time:.2f}s\n")
         
-        loss_per_epoch.append((epoch, mut_val_loss, wt_val_loss, avg_during_train_loss))
+        loss_per_epoch.append((epoch, mut_val_loss, wt_val_loss))
 
         # plot heatmap for myc gene 
         myc_fs_heatmap, _ = generate_heatmap(myc_sequence, model, tokenizer)
         myc_fs_diff_heatmap = myc_fs_heatmap - myc_base_heatmap
-        plot_heatmap(myc_gene, myc_fs_heatmap, f"Epoch {epoch}: Fine-tuned Missense Model (LLRs)", myc_sequence, amino_acids, base_dir)
-        plot_heatmap(myc_gene, myc_fs_diff_heatmap, f"Epoch {epoch}: Difference (Fine-tuned Missense - Original)", myc_sequence, amino_acids, base_dir)
+        scaled_plot_heatmap(myc_gene, myc_fs_heatmap, f"Epoch {epoch}: Fine-tuned Missense Model (LLRs)", myc_sequence, amino_acids, base_dir)
+        custom_plot_heatmap(myc_gene, myc_fs_diff_heatmap, f"Epoch {epoch}: Difference (Fine-tuned Missense - Original)", myc_sequence, amino_acids, base_dir)
         print(f"Plotted heatmap for Epoch{epoch} for gene MYC")
 
         # plot heatmap for tp53 gene 
         tp53_fs_heatmap, _ = generate_heatmap(tp53_sequence, model, tokenizer)
         tp53_fs_diff_heatmap = tp53_fs_heatmap - tp53_base_heatmap
-        plot_heatmap(tp53_gene, tp53_fs_heatmap, f"Epoch {epoch}: Fine-tuned Missense Model (LLRs)", tp53_sequence, amino_acids, base_dir)
-        plot_heatmap(tp53_gene, tp53_fs_diff_heatmap, f"Epoch {epoch}: Difference (Fine-tuned Missense - Original)", tp53_sequence, amino_acids, base_dir)
+        scaled_plot_heatmap(tp53_gene, tp53_fs_heatmap, f"Epoch {epoch}: Fine-tuned Missense Model (LLRs)", tp53_sequence, amino_acids, base_dir)
+        custom_plot_heatmap(tp53_gene, tp53_fs_diff_heatmap, f"Epoch {epoch}: Difference (Fine-tuned Missense - Original)", tp53_sequence, amino_acids, base_dir)
         print(f"Plotted heatmap for Epoch{epoch} for gene TP53")
 
         # plot heatmap for rpl gene 
         rpl_fs_heatmap, _ = generate_heatmap(rpl_sequence, model, tokenizer)
         rpl_fs_diff_heatmap = rpl_fs_heatmap - rpl_base_heatmap
-        plot_heatmap(rpl_gene, rpl_fs_heatmap, f"Epoch {epoch}: Fine-tuned Missense Model (LLRs)", rpl_sequence, amino_acids, base_dir)
-        plot_heatmap(rpl_gene, rpl_fs_diff_heatmap, f"Epoch {epoch}: Difference (Fine-tuned Missense - Original)", rpl_sequence, amino_acids, base_dir)
+        scaled_plot_heatmap(rpl_gene, rpl_fs_heatmap, f"Epoch {epoch}: Fine-tuned Missense Model (LLRs)", rpl_sequence, amino_acids, base_dir)
+        custom_plot_heatmap(rpl_gene, rpl_fs_diff_heatmap, f"Epoch {epoch}: Difference (Fine-tuned Missense - Original)", rpl_sequence, amino_acids, base_dir)
         print(f"Plotted heatmap for Epoch{epoch} for gene RPL2")
 
         # save loss after each epoch 
