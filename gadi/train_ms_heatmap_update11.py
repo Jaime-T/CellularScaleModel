@@ -410,6 +410,8 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
     # track loss
     loss_per_epoch = []
 
+    n_batches = min(len(mut_train_data), len(wt_train_data))
+
     # New!!
     combined_batches = combined_batch_generator(
         mut_train_data,
@@ -488,7 +490,7 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
             if (batch_idx + 1) % 1000 == 0:  
                 batch_num = batch_idx + 1 
                 batch_loss = total_loss / batch_num
-                print(f"Epoch {epoch}, Batch {batch_num}/{len(combined_batches)} | Avg Loss during training: {batch_loss:.4f}")
+                print(f"Epoch {epoch}, Batch {batch_num}/{n_batches} | Avg Loss during training: {batch_loss:.4f}")
 
                 # plot heatmap for myc gene 
                 myc_fs_heatmap, _ = generate_heatmap(myc_sequence, model, tokenizer)
@@ -537,9 +539,6 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
                 torch.save(optimizer.state_dict(), os.path.join(batch_dir, "optimizer.pt"))
                 print(f"Saved checkpoint for epoch {epoch}, batch {batch_num} in {batch_dir}\n")
 
-
-                print("ending early, for testing purposes")
-                exit()
 
         
 
