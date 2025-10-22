@@ -338,14 +338,19 @@ def combined_batch_generator(
             mut_tensor = mut_item[key]
             wt_tensor  = wt_item[key]
 
+            # Ensure both are at least 2D (batch dimension first)
+            if mut_tensor.dim() == 1:
+                mut_tensor = mut_tensor.unsqueeze(0)
+            if wt_tensor.dim() == 1:
+                wt_tensor = wt_tensor.unsqueeze(0)
+
             # Replicate the single mutant sample 7 times
             mut_rep = mut_tensor.repeat(
                 (ratio[0],) + (1,) * (mut_tensor.dim() - 1)
             )
             # Add single wildtype
-            wt_rep = wt_tensor.unsqueeze(0)
-            batch[key] = torch.cat([mut_rep, wt_rep], dim=0) \
-                           .to(device, non_blocking=True)
+            wt_rep = wt_tensor
+            batch[key] = torch.cat([mut_rep, wt_rep], dim=0).to(device, non_blocking=True)
 
         # ✅ Optional Debugging
         if debug and debug_batches_printed < max_debug_batches:
