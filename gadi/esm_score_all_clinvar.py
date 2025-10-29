@@ -17,6 +17,7 @@ from plotnine import ( ggplot, aes, geom_density, theme_minimal, scale_color_man
     scale_fill_manual)
 import os
 from sklearn.preprocessing import StandardScaler
+import re
 
 def compute_mut_score(model, tokenizer, mutation, sequence):
     model.eval()
@@ -70,9 +71,10 @@ def main():
     base_model.eval()
 
     # calculate the esm scores for each mutation 
-     # Calculate the CSM scores for each mutation and append to dataframe
     for row in filt_mutations.itertuples():
         mutation = row.ProteinChange
+        mutation = re.sub(r"^p\.", "", mutation)
+
         sequence = row.wt_protein_seq
         idx = row.Index
         if pd.isna(mutation):
