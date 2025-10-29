@@ -81,10 +81,17 @@ def main():
             continue
         try:
             esm_score = compute_mut_score(base_model, tokenizer, mutation, sequence)
-            df.loc[idx, 'csm_score'] = esm_score
+            filt_mutations.loc[idx, 'esm_score'] = esm_score
         except ValueError as e:
             print(e)
-            df.loc[idx, 'esm_score'] = None
+            filt_mutations.loc[idx, 'esm_score'] = None
+
+        # save intermediate results
+        if ((idx == 10) or (idx == 100)):
+            slct_mutations = filt_mutations[['Name','HGNC_ID', 'ClinicalSignificance', 'ProteinChange', 'wt_protein_seq', 'esm_score']]
+            print(f"Processed {idx} mutations, saving intermediate results...")
+            slct_mutations.to_csv(f"/g/data/gi52/jaime/clinvar/all_clinvar_esm_scores_intermediate{idx}.csv", index=False)
+
 
     # Save the final results
     save_path = os.path.join("/g/data/gi52/jaime/clinvar/all_clinvar_esm_scores.csv")
