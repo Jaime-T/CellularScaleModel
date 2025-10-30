@@ -43,26 +43,29 @@ def compute_mut_score(model, tokenizer, mutation, sequence):
     # Get the log probability of the mutated amino acid at the mutation position
     aa_index = tokenizer.convert_tokens_to_ids(mt)
     score = log_probs[aa_index].item()
+
+     # free memory
+    del logits, log_probs, masked_input_ids, encoded
+    torch.cuda.empty_cache()
+
     return score
 
 
 def main():
 
     print('hi')
+
+    cols = ['Name', 'HGNC_ID', 'GeneSymbol', 'ClinicalSignificance', 'ProteinChange', 'wt_protein_seq']
+
     # Load in joined clinvar and depmap mutatins which have clinvar classifciation label
-    df = pd.read_csv("/g/data/gi52/jaime/data/clinvar_depmap_joined.csv")
+    df = pd.read_csv("/g/data/gi52/jaime/data/clinvar_depmap_joined.csv", usecols=cols, low_memory=False)
     #df = pd.read_csv("/home/cciamr.local/jtaitz/R_Drive/DDC/jaime/CellularScaleModel/data/clinvar_depmap_joined.csv")
-    mutations = df.copy()
-    print(f'Number of entries: {len(mutations)}')
+   
+    print(f'Number of entries: {len(df)}')
 
     # Filter for unique mutations
-    uni_mutations = mutations.drop_duplicates(subset=['Name', 'ClinicalSignificance'])
+    uni_mutations = df.drop_duplicates(subset=['Name', 'ClinicalSignificance']).copy()
     print(f"Number of unique entries: {len(uni_mutations)}")
-
-    # Filter for mutations that have label: Pathogenic, Benign, Uncertain Significance, and Conflicting classifications of pathogenicity
-    filt_mutations = uni_mutations[uni_mutations['ClinicalSignificance'].isin(['Pathogenic', 'Benign', 'Uncertain significance','Conflicting classifications of pathogenicity'])]
-    print(f"Number of filtered labeled entries: {len(filt_mutations)}")
-
 
     # Load ESM2 base model and tokenizer
     base_model_path = "/g/data/gi52/jaime/esm2_650M_model"
@@ -71,7 +74,7 @@ def main():
     base_model.eval()
 
     # calculate the esm scores for each mutation 
-    for row in filt_mutations.itertuples():
+    for i, row in enumerate(uni_mutations.itertuples()):
         mutation = row.ProteinChange
         mutation = re.sub(r"^p\.", "", mutation)
 
@@ -81,16 +84,16 @@ def main():
             continue
         try:
             esm_score = compute_mut_score(base_model, tokenizer, mutation, sequence)
-            filt_mutations.loc[idx, 'esm_score'] = esm_score
+            uni_mutations.loc[idx, 'esm_score'] = esm_score
         except ValueError as e:
             print(e)
-            filt_mutations.loc[idx, 'esm_score'] = None
+            uni_mutations.loc[idx, 'esm_score'] = None
 
         # save intermediate results
-        if ((idx == 10) or (idx == 100)):
-            slct_mutations = filt_mutations[['Name','HGNC_ID', 'ClinicalSignificance', 'ProteinChange', 'wt_protein_seq', 'esm_score']]
-            print(f"Processed {idx} mutations, saving intermediate results...")
-            slct_mutations.to_csv(f"/g/data/gi52/jaime/clinvar/all_clinvar_esm_scores_intermediate{idx}.csv", index=False)
+        if (i + 1) % 5000 == 0:
+            print(f"Processed {i + 1} mutations, saving intermediate results...")
+            uni_mutations.to_csv(f"/g/data/gi52/jaime/clinvar/esm_intermediate_scores/esm_scores_intermediate{idx}.csv", index=False)
+            torch.cuda.empty_cache()
 
 
     # Save the final results
