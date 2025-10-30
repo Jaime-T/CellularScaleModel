@@ -81,7 +81,7 @@ def main():
     csm_model.eval()     
 
     # calculate the csm scores for each mutation 
-    for i, row in uni_mutations.itertuples():
+    for i, row in enumerate(uni_mutations.itertuples()):
         mutation = row.ProteinChange
         mutation = re.sub(r"^p\.", "", mutation)
 
