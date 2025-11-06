@@ -23,13 +23,13 @@ from tqdm import tqdm
 # ---------------------------------------------------------------------
 # Helper function: batched mutation scoring
 # ---------------------------------------------------------------------
-def compute_mut_scores_for_sequence(model, tokenizer, mutations, sequence, device,  batch_size=8):
+def compute_mut_scores_for_sequence(model, tokenizer, mutations, sequence, device,  batch_size=4):
     model.eval()
 
     # Tokenize sequence once
     encoded = tokenizer(sequence, return_tensors="pt").to(device)
 
-    scores = {}
+    scores = []
 
     for i in range(0, len(mutations), batch_size):
         batch_muts = mutations[i : i + batch_size]
@@ -62,9 +62,9 @@ def compute_mut_scores_for_sequence(model, tokenizer, mutations, sequence, devic
 
         for j, mut in enumerate(batch_muts):
             if mask_positions[j] is None:
-                scores[mut] = None
+                scores[i] = None
             else:
-                scores[mut] = log_probs[j, mask_positions[j], aa_indices[j]].item()
+                scores[i] = log_probs[j, mask_positions[j], aa_indices[j]].item()
 
         del logits, log_probs, input_ids
         torch.cuda.empty_cache()
@@ -81,8 +81,9 @@ def main():
     input_csv = "/g/data/gi52/jaime/data/clinvar_depmap_joined.csv"
     base_model_path = "/g/data/gi52/jaime/esm2_650M_model"
     adapter_path = "/g/data/gi52/jaime/trained/esm2_650M_model/missense/run11/epoch0_batch10000"
-    output_dir = "/g/data/gi52/jaime/clinvar/run11_ms/batched2_all_genes"
+    output_dir = "/g/data/gi52/jaime/clinvar/run11_ms/batched6_all_genes"
     os.makedirs(output_dir, exist_ok=True)
+    final_path = os.path.join(output_dir, "all_clinvar_csm_scores.csv")
 
     # Load data
     cols = ["Name", "HGNC_ID", "GeneSymbol", "ClinicalSignificance", "ProteinChange", "wt_protein_seq"]
@@ -110,16 +111,37 @@ def main():
     frozen_base_model = frozen_base_model.to(device)
 
     # Group by sequence for batching
-    grouped = df.groupby("wt_protein_seq")
+    grouped = df.groupby("wt_protein_seq", sort=False)
+    num_groups = df["wt_protein_seq"].nunique()
+    print(f"Total unique sequences to process: {num_groups}", flush=True)  
+    print(f"Total unique genes to process: {df["GeneSymbol"].nunique()}", flush=True)  
+
+
+    # Check if we’re appending to an existing file
+    header_written = os.path.exists(final_path)
+    if header_written:
+        print(f"Appending to existing output file: {final_path}", flush=True)
+
     results = []
     for i, (seq, group) in enumerate(tqdm(grouped, desc="Processing sequences")):
+
+        print(f"Processing group {i} / {num_groups}", flush=True)
+        print(f"Gene symbols in this group: {group['GeneSymbol'].unique()}", flush=True)
+
         muts = [re.sub(r"^p\.", "", m) for m in group["ProteinChange"].dropna()]
         
         # compute both scores 
         esm_scores = compute_mut_scores_for_sequence(frozen_base_model, tokenizer, muts, seq, device)
         csm_scores = compute_mut_scores_for_sequence(csm_model, tokenizer, muts, seq, device)
-        group["esm_score"] = group["ProteinChange"].map(lambda x: esm_scores.get(re.sub(r"^p\.", "", x), None))
-        group["csm_score"] = group["ProteinChange"].map(lambda x: csm_scores.get(re.sub(r"^p\.", "", x), None))
+
+        mask = group["ProteinChange"].notna()
+        # assign the new column via loc
+        group.loc[mask, "esm_score"] = pd.Series(esm_scores, index=group.loc[mask].index)
+        group.loc[mask, "csm_score"] = pd.Series(csm_scores, index=group.loc[mask].index)
+
+
+        #group["esm_score"] = group["ProteinChange"].map(lambda x: esm_scores.get(re.sub(r"^p\.", "", x), None))
+        #group["csm_score"] = group["ProteinChange"].map(lambda x: csm_scores.get(re.sub(r"^p\.", "", x), None))
         results.append(group)
 
         # save first group as example
@@ -133,12 +155,15 @@ def main():
             checkpoint = os.path.join(output_dir, f"checkpoint_seqbatch_{i+1}.csv")
             pd.concat(results).to_csv(checkpoint, index=False)
             print(f"Saved checkpoint: {checkpoint}", flush=True)
-        
 
-    final_df = pd.concat(results, ignore_index=True)
-    save_path = os.path.join(output_dir, "epoch0_batch10000_all_clinvar_csm_scores.csv")
-    final_df.to_csv(save_path, index=False)
-    print(f"Saved final results to {save_path}", flush=True)
+        
+        # Append directly to the final output file
+        group.to_csv(final_path, mode="a", index=False, header=not header_written)
+        header_written = True
+        print(f"Appended results of group {i} to {final_path}", flush=True)
+        
+    print(f"Processing complete — results appended to {final_path}", flush=True)
+
 
 
 if __name__ == "__main__":
