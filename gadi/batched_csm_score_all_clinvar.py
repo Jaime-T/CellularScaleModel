@@ -4,7 +4,7 @@ Compute CSM scores for ClinVar mutations using batched inference with ESM2.
 
 Steps:
 1. Load ClinVar–DepMap joined data
-2. Filter for unique mutations
+2. DO NOT Filter for unique mutations
 3. Load pretrained ESM2 model and adapter
 4. Batch all mutations by protein sequence
 5. Compute ESM and CSM scores efficiently
@@ -62,9 +62,9 @@ def compute_mut_scores_for_sequence(model, tokenizer, mutations, sequence, devic
 
         for j, mut in enumerate(batch_muts):
             if mask_positions[j] is None:
-                scores[i] = None
+                scores.append(None)
             else:
-                scores[i] = log_probs[j, mask_positions[j], aa_indices[j]].item()
+                scores.append(log_probs[j, mask_positions[j], aa_indices[j]].item())
 
         del logits, log_probs, input_ids
         torch.cuda.empty_cache()
@@ -81,15 +81,15 @@ def main():
     input_csv = "/g/data/gi52/jaime/data/clinvar_depmap_joined.csv"
     base_model_path = "/g/data/gi52/jaime/esm2_650M_model"
     adapter_path = "/g/data/gi52/jaime/trained/esm2_650M_model/missense/run11/epoch0_batch10000"
-    output_dir = "/g/data/gi52/jaime/clinvar/run11_ms/batched6_all_genes"
+    output_dir = "/g/data/gi52/jaime/clinvar/run11_ms/batched7_all_genes"
     os.makedirs(output_dir, exist_ok=True)
     final_path = os.path.join(output_dir, "all_clinvar_csm_scores.csv")
 
     # Load data
     cols = ["Name", "HGNC_ID", "GeneSymbol", "ClinicalSignificance", "ProteinChange", "wt_protein_seq"]
     df = pd.read_csv(input_csv, usecols=cols, low_memory=False)
-    df = df.drop_duplicates(subset=["Name", "ClinicalSignificance"]).copy()
     print(f"Loaded {len(df)} unique mutations", flush=True)
+    print(f" Example protein changes: {df['ProteinChange'].head().tolist()}", flush=True)
 
     # Load model + adapter
     print("Loading ESM2 model and adapter...", flush=True)
@@ -113,8 +113,10 @@ def main():
     # Group by sequence for batching
     grouped = df.groupby("wt_protein_seq", sort=False)
     num_groups = df["wt_protein_seq"].nunique()
+    num_genes = df["GeneSymbol"].nunique()
     print(f"Total unique sequences to process: {num_groups}", flush=True)  
-    print(f"Total unique genes to process: {df["GeneSymbol"].nunique()}", flush=True)  
+    print(f"Total unique genes to process: {num_genes}", flush=True)  
+    print(f"Number of TP53 mutations: {len(df[df['GeneSymbol'] == 'TP53'])}", flush=True)
 
 
     # Check if we’re appending to an existing file
@@ -153,7 +155,7 @@ def main():
         # Save periodically
         if (i + 1) % 20 == 0:
             checkpoint = os.path.join(output_dir, f"checkpoint_seqbatch_{i+1}.csv")
-            pd.concat(results).to_csv(checkpoint, index=False)
+            group.to_csv(checkpoint, index=False)
             print(f"Saved checkpoint: {checkpoint}", flush=True)
 
         
