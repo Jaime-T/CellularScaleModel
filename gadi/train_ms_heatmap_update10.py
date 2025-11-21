@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
+Iteration 4
 Train on all missense mutations including replicates (mask mutation position)
 
 Compute 2 loss values: on new mutation data, and on old wildtype data
@@ -104,7 +105,7 @@ def random_tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022, mlm
 def mut_tokenize_and_mask_seqs(batch, tokenizer, col='mt_windowed_seq', window_size: int = 1022):
     # Tokenize the batch
     encoded_seqs = tokenizer(
-        batch[{col}].tolist(),
+        batch[col].tolist(),
         padding="max_length",
         truncation=True,
         max_length=min(window_size, tokenizer.model_max_length),
