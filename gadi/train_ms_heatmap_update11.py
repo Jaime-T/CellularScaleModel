@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
+Iteration 5
 Train on all missense mutations including replicates (mask mutation position)
 Batches of 8 have 7 MT and 1 WT sequence to reduce catastrophic forgetting
 
