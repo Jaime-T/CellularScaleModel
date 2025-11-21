@@ -1,5 +1,5 @@
 """ 
-Compute and plot the distribution of CSM scores for TP53 mutations from ClinVar dataset.
+Compute and plot the distribution of CSM scores for TP53/all mutations from ClinVar dataset.
 Compare with base ESM2 model scores.
 
 For missense run11 - 7:1 MT to WT batches of 8
@@ -132,7 +132,7 @@ def extremity_mut_distro_plot(csm_data, save_dir, batch_num, xlabel="csm_score")
     print(f"Saved to {save_path}")
 
 
-def scaled_delta_extremity_mut_distro_plot(csm_data, save_dir, batch_num):
+def scaled_delta_extremity_mut_distro_plot(csm_data, save_dir, batch_num, gene):
 
     
     csm_data = csm_data.copy()  # avoid modifying original
@@ -155,7 +155,7 @@ def scaled_delta_extremity_mut_distro_plot(csm_data, save_dir, batch_num):
         "Uncertain significance": "orange",
         "Conflicting classifications of pathogenicity": "grey"
     }
-
+    ''' 
     # method 1: seaborn kdeplot
     plt.figure(figsize=(8, 5))
     sns.kdeplot(
@@ -172,10 +172,12 @@ def scaled_delta_extremity_mut_distro_plot(csm_data, save_dir, batch_num):
     plt.ylabel("Density")
     sns.despine()
 
-    save_path = os.path.join(save_dir, f"scaled_delta_epoch0_batch{batch_num}_tp53_plot-1.png")
+    save_path = os.path.join(save_dir, f"scaled_delta_epoch0_batch{batch_num}_all_genes_plot-1.png")
     plt.savefig(save_path, dpi=300)
     plt.close()
     print(f"Saved to {save_path}")
+    '''
+
 
     # method 2: plotnine (ggplot2-like)
     p = (
@@ -186,12 +188,12 @@ def scaled_delta_extremity_mut_distro_plot(csm_data, save_dir, batch_num):
         + scale_fill_manual(values=color_map)
         + theme_minimal()
     )
-    save_path = os.path.join(save_dir, f"scaled_delta_epoch0_batch{batch_num}_tp53_plot-2.png")
+    save_path = os.path.join(save_dir, f"scaled_delta_epoch0_batch{batch_num}_{gene}.png")
     p.save(save_path, width=8, height=5, dpi=300)
     print(f"Saved to {save_path}")
 
 
-def delta_extremity_mut_distro_plot(csm_data, save_dir, batch_num):
+def delta_extremity_mut_distro_plot(csm_data, save_dir, batch_num, gene):
     """
     Plot density distributions of (CSM Score - ESM Score) by ClinVar label,
     using both seaborn and plotnine.
@@ -212,7 +214,7 @@ def delta_extremity_mut_distro_plot(csm_data, save_dir, batch_num):
         "Uncertain significance": "orange",
         "Conflicting classifications of pathogenicity": "grey"
     }
-
+    ''' 
     # --- Method 1: seaborn kdeplot ---
     plt.figure(figsize=(8, 5))
     sns.kdeplot(
@@ -229,10 +231,11 @@ def delta_extremity_mut_distro_plot(csm_data, save_dir, batch_num):
     plt.ylabel("Density")
     sns.despine()
 
-    save_path = os.path.join(save_dir, f"delta_epoch0_batch{batch_num}_tp53_plot-1.png")
+    save_path = os.path.join(save_dir, f"delta_epoch0_batch{batch_num}_seqbatch_ten_genes_plot-1.png")
     plt.savefig(save_path, dpi=300)
     plt.close()
     print(f"Saved seaborn plot to {save_path}")
+    '''
 
     # --- Method 2: plotnine (ggplot2 style) ---
     p = (
@@ -244,17 +247,36 @@ def delta_extremity_mut_distro_plot(csm_data, save_dir, batch_num):
         + theme_minimal()
     )
 
-    save_path = os.path.join(save_dir, f"delta_epoch0_batch{batch_num}_tp53_plot-2.png")
+    save_path = os.path.join(save_dir, f"delta_epoch0_batch{batch_num}_{gene}_plot-2.png")
     p.save(save_path, width=8, height=5, dpi=300)
     print(f"Saved plotnine plot to {save_path}")
 
-def cartesian_plot(filtered_data, save_dir):
+def cartesian_plot(filtered_data, save_dir, gene):
     "Plot esm score versus csm score scatter plot"
 
     csm_data = filtered_data.copy()  #
+    # Convert columns to numeric, coercing invalid values to NaN
+    csm_data["csm_score"] = pd.to_numeric(csm_data["csm_score"], errors="coerce")
+    csm_data["esm_score"] = pd.to_numeric(csm_data["esm_score"], errors="coerce")
+
+
+    # filter out rows with NaN scores
+    csm_data = csm_data.dropna(subset=["esm_score", "csm_score"])
 
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)   
+
+     # --- Custom colour map for ClinVar labels ---
+    custom_palette = {
+        'Pathogenic': '#00008B',  # dark blue
+        'Pathogenic/Likely pathogenic': '#4169E1',  # medium blue (royal blue)
+        'Likely pathogenic': '#87CEFA',  # light blue
+        'Benign': '#FF0000',  # red
+        'Benign/Likely benign': "#F27F52",  # light red (salmon)
+        'Likely benign': "#ED5E76",  # pink
+        'Uncertain significance': "#DEB052",  # yellow
+        'Conflicting classifications of pathogenicity': '#808080'  # grey
+    }
 
     plt.figure(figsize=(8, 6))
     ax = sns.scatterplot(
@@ -262,16 +284,28 @@ def cartesian_plot(filtered_data, save_dir):
         y="esm_score",
         x="csm_score",
         hue="clinvar_label",
+        palette=custom_palette,
         alpha=0.7
     )   
     
     # --- Set limits rounded to nearest 5 ---
     min_x = np.floor(csm_data["csm_score"].min() / 5) * 5
+    print(f"min_x: {min_x}")
     min_y = np.floor(csm_data["esm_score"].min() / 5) * 5
+    print(f"min_y: {min_y}")
+
 
     # --- Set limits rounded to nearest 5 ---
     max_x = np.ceil(csm_data["csm_score"].max() / 5) * 5
     max_y = np.ceil(csm_data["esm_score"].max() / 5) * 5
+
+      # --- Make axes equal and square ---
+    overall_min = np.floor(min(csm_data["csm_score"].min(), csm_data["esm_score"].min()) / 5) * 5
+    overall_max = np.ceil(max(csm_data["csm_score"].max(), csm_data["esm_score"].max()) / 5) * 5
+
+    ax.set_xlim(overall_min, overall_max)
+    ax.set_ylim(overall_min, overall_max)
+    ax.set_aspect('equal', adjustable='box')
 
     # Invert both axes to make values decrease
     ax.invert_xaxis()
@@ -295,14 +329,14 @@ def cartesian_plot(filtered_data, save_dir):
 
     # --- Add grid and labels ---
     ax.grid(True, linestyle='--', alpha=0.3)
-    plt.title("TP53 Gene: CSM Score vs ESM Score by ClinVar Label")
+    plt.title(f"CSM Score vs ESM Score for {gene.upper()} Missense Mutations")
     plt.ylabel("ESM Score")
     plt.xlabel("CSM Score")
 
     sns.despine(left=False, top=False)
     plt.tight_layout()
 
-    save_path = os.path.join(save_dir, f"tp53_esm_vs_csm_scatter_grid_filt.png")
+    save_path = os.path.join(save_dir, f"esm_vs_csm_scatter_{gene}.png")
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close()
     print(f"Saved to {save_path}")
@@ -311,29 +345,60 @@ def main():
     
     
     # Load dataset with ClinVar labels and mutations, and precomputed esm and csm scores 
-    tp53_clinvar = pd.read_csv("/g/data/gi52/jaime/clinvar/run11_ms/tp53/epoch0_batch10000_tp53_clinvar_csm_scores.csv")
-
+    #tp53_clinvar = pd.read_csv("/g/data/gi52/jaime/clinvar/run11_ms/tp53/epoch0_batch10000_tp53_clinvar_csm_scores.csv")
+    #all_genes_clinvar_intermediate = pd.read_csv("/g/data/gi52/jaime/clinvar/run11_ms/batched7_all_genes/all_clinvar_csm_scores.csv")
+    #data = pd.read_csv("/g/data/gi52/jaime/clinvar/run11_ms/five_panlethal_genes/five_panlethal_genes_clinvar_csm_scores.csv", na_values=["NaN", "nan", "None", ""])
+    data = pd.read_csv("/g/data/gi52/jaime/clinvar/run11_ms/batched_ten_genes/ten_genes_clinvar_csm_scores.csv")
+    
+    gene = "rpl15"
     # save directory
-    save_dir = f"/g/data/gi52/jaime/clinvar/run11_ms/tp53"
+    #save_dir = f"/g/data/gi52/jaime/clinvar/run11_ms/batched4_all_genes"
+    #save_dir = f"/g/data/gi52/jaime/clinvar/run11_ms/batched7_all_genes"
+    save_dir = f"/g/data/gi52/jaime/clinvar/run11_ms/{gene}"
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
     
     # rename columns for plotting
-    df = tp53_clinvar.copy()
+    # copy tp53 data
+    
+    df = data.copy()
+
+    df = df[df['GeneSymbol'] == gene.upper()]
+    print(f"Number of {gene} mutations in file: {len(df)}")
+
     df = df.rename(
-        columns={"Germline.classification": "clinvar_label"}
+        #columns={"Germline.classification": "clinvar_label"}
+        columns={"ClinicalSignificance": "clinvar_label"}
     )
+
+    ''' 
+    tp53 = df[df['GeneSymbol'] == 'TP53']
+    print(f"Number of TP53 mutations in all_genes_clinvar_intermediate file: {len(tp53)}")
+    # find tp53 genes with esm and csm score less than -15 
+    tp53_filtered = tp53[(tp53['esm_score'] < -15) & (tp53['csm_score'] < -15)]
+    print(f"Number of TP53 mutations with ESM and CSM score < -15: {len(tp53_filtered)}")
+    print(tp53_filtered.nunique())
+
+    print('number of mutations in tp53_clinvar file: ', len(tp53_clinvar))
+    tp53_filtered_2 = tp53_clinvar[(tp53_clinvar['esm_score'] < -15) & (tp53_clinvar['csm_score'] < -15)]
+    print(f"Number of TP53 mutations with ESM and CSM score < -15 from tp53_clinvar file: {len(tp53_filtered_2)}")
+    print(tp53_filtered_2.nunique())
+    '''
 
     # filter out only Pathogenic, Benign, Uncertain Significance, and Conflicting classifications of pathogenicity
     filtered_data = df[df['clinvar_label'].isin([
         'Pathogenic', 'Benign', 'Uncertain significance','Conflicting classifications of pathogenicity',
         'Pathogenic/Likely pathogenic', 'Likely pathogenic', 'Benign/Likely benign', 'Likely benign'])]
     
-    cartesian_plot(filtered_data, save_dir)
-
-    delta_extremity_mut_distro_plot(filtered_data, save_dir, 10000)
-    scaled_delta_extremity_mut_distro_plot(filtered_data, save_dir, 10000)
-
+    cartesian_plot(filtered_data, save_dir, gene)
     
 
+    filtered_data = df[df['clinvar_label'].isin([
+        'Pathogenic', 'Benign', 'Uncertain significance','Conflicting classifications of pathogenicity'])]
+    delta_extremity_mut_distro_plot(filtered_data, save_dir, 10000, gene)
+    scaled_delta_extremity_mut_distro_plot(filtered_data, save_dir, 10000, gene)
+
+    
 
 
 if __name__ == "__main__":
