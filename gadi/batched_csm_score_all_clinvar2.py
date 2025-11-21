@@ -143,11 +143,11 @@ def main():
 
     # write heading to new file
     final_path = os.path.join(output_dir, "ten_genes_clinvar_csm_scores.csv")
-    with open(final_path, "w") as f:
-        f.write("Name,HGNC_ID,GeneSymbol,ClinicalSignificance,ProteinChange,esm_score,csm_score\n")
+    #with open(final_path, "w") as f:
+    #    f.write("Name,HGNC_ID,GeneSymbol,ClinicalSignificance,ProteinChange,esm_score,csm_score\n")
 
     # process each gene 
-    for i, gene in enumerate(ten_genes):
+    for i, gene in enumerate(ten_genes[5:]):
         print(f"Processing gene {i+1}/{len(ten_genes)}: {gene}", flush=True)
 
         seq_row = protein_seqs.loc[protein_seqs["symbol"] == gene, "sequence"]
