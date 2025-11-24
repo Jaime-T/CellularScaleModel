@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Iteration 6: update LoRA targets to include query and value projection layers
+Iteration 6: update LoRA targets to include query and value layers
 
 Train on all missense mutations including replicates (mask mutation position)
 Batches of 8 have 7 MT and 1 WT sequence to reduce catastrophic forgetting
@@ -403,6 +403,10 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
     print(model.targeted_module_names)
     model.to(device)
 
+    # print info about model structure
+    print(model)
+    model.named_modules()
+
     # directories
     base_dir = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run12"
     os.makedirs(base_dir, exist_ok=True)
@@ -658,13 +662,14 @@ def main():
     lora_config = LoraConfig(
         r=4,
         lora_alpha=8,
-        target_modules=['q_proj', 'v_proj'],  # PEFT will insert LoRA into matching linear layers
+        target_modules=["query", "value"],  # PEFT will insert LoRA into matching linear layers
         lora_dropout=0.1,
         bias="none",
         task_type=TaskType.TOKEN_CLS,  # Best fit for masked token modelling
     )
 
     t6 = timer()
+
     print('\n\nStarting training!')
     train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data, wt_train_data, mut_valid_data, wt_valid_data, lora_config, batch_size, max_epochs)
 
