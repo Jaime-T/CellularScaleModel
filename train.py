@@ -64,7 +64,7 @@ class TorchDataset(Dataset):
             key: torch.tensor(self.data[key][idx]) for key in self.data
         }
 
-def tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022, mlm_probability: float = 0.15):
+def tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022):
     # Tokenize the batch
     encoded_seqs = tokenizer(
         batch['windowed_seq'].tolist(),
