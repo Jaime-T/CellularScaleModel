@@ -90,9 +90,9 @@ def extremity_mut_distro_plot(csm_data, save_dir, batch_num, xlabel="csm_score")
 
     # Custom color mapping
     color_map = {
-        "Pathogenic": "red",
-        "Benign": "green",
-        "Uncertain significance": "yellow",
+        "Pathogenic": "blue",
+        "Benign": "red",
+        "Uncertain significance": "orange",
         "Conflicting classifications of pathogenicity": "grey"
     }
 

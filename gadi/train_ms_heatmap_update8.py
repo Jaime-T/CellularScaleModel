@@ -35,7 +35,7 @@ import torch.nn as nn
 import torch.optim as optim
 from transformers import EsmForMaskedLM, EsmTokenizer
 import random
-from peft import get_peft_model, LoraConfig, TaskType
+from peft import get_peft_model, LoraConfig, TaskType, PeftModel
 from torch.optim import AdamW
 from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
@@ -432,7 +432,14 @@ def main():
     for p in frozen_base_model.parameters():
         p.requires_grad = False
 
+    # Load finetuned model from last saved checkpoint
+    ckpt_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch35000"
 
+    # Load PEFT adapter onto base model
+    model = PeftModel.from_pretrained(base_model, ckpt_path, is_trainable=True)
+    model.to("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Tokenize datasets
     train_tokenized_df = tokenize_and_mask_seqs(ms_test_df_train_df, tokenizer, window_size)
     ms_test_df_train_dataset = TorchDataset(train_tokenized_df)
 
@@ -451,7 +458,7 @@ def main():
 
     t6 = timer()
     print('\n\nStarting training!')
-    train_model(tokenizer, base_model, frozen_base_model, descr, ms_test_df_train_dataset, ms_test_df_valid_dataset, lora_config, batch_size, max_epochs)
+    train_model(tokenizer, model, frozen_base_model, descr, ms_test_df_train_dataset, ms_test_df_valid_dataset, lora_config, batch_size, max_epochs)
 
     t7 = timer()
     print(f"Total Time for training model: {t7 - t6:.4f} seconds")

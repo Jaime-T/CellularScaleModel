@@ -90,14 +90,14 @@ def main():
         if pd.isna(mutation):
             continue
         try:
-            csm_score = compute_mut_score(base_model, tokenizer, mutation, sequence)
+            csm_score = compute_mut_score(csm_model, tokenizer, mutation, sequence)
             filt_mutations.loc[idx, 'csm_score'] = csm_score
         except ValueError as e:
             print(e)
             filt_mutations.loc[idx, 'csm_score'] = None
 
         # save intermediate results
-        if idx % 10000 == 0:
+        if idx % 5000 == 0:
             slct_mutations = filt_mutations[['Name','HGNC_ID', 'ClinicalSignificance', 'ProteinChange', 'wt_protein_seq', 'csm_score']]
             print(f"Processed {idx} mutations, saving intermediate results...")
             slct_mutations.to_csv(f"/g/data/gi52/jaime/clinvar/{run}/all_clinvar_esm_scores_intermediate{idx}.csv", index=False)

@@ -196,7 +196,7 @@ def train_model(tokenizer, model, descr, train_dataset, valid_dataset,
     # -- Training loop --
     for epoch in range(max_epochs):
         # Training 
-        print(f"\nStarting training for epoch {epoch+1}...")
+        print(f"\nStarting training for epoch {epoch}...")
         epoch_start = timer()
         model.train()
         total_loss = 0
@@ -209,8 +209,19 @@ def train_model(tokenizer, model, descr, train_dataset, valid_dataset,
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
+
             # save progress every batch
             torch.save({"epoch": epoch, "batch_idx": batch_idx}, progress_file)
+
+            # save checkpoint every 500 batches
+            if (batch_idx + 1) % 500 == 0:  
+                batch_num = batch_idx + 1 
+                batch_dir = os.path.join(base_dir, f"epoch{epoch}_batch{batch_num}")
+                os.makedirs(batch_dir, exist_ok=True)
+                model.save_pretrained(batch_dir)
+                tokenizer.save_pretrained(batch_dir)
+                torch.save(optimizer.state_dict(), os.path.join(batch_dir, "optimizer.pt"))
+                print(f"Saved checkpoint at epoch {epoch}, batch {batch_num}")
 
         avg_train_loss = total_loss / len(train_loader)
 
@@ -225,17 +236,17 @@ def train_model(tokenizer, model, descr, train_dataset, valid_dataset,
         avg_val_loss = val_loss / len(valid_loader)
 
         epoch_time = timer() - epoch_start
-        print(f"Epoch {epoch+1}: train loss ={avg_train_loss:.4f}, valid loss ={avg_val_loss:.4f} | time: {epoch_time:.2f}s")
+        print(f"Epoch {epoch}: train loss ={avg_train_loss:.4f}, valid loss ={avg_val_loss:.4f} | time: {epoch_time:.2f}s")
         
-        loss_per_epoch.append((epoch+1, avg_train_loss, avg_val_loss))
+        loss_per_epoch.append((epoch, avg_train_loss, avg_val_loss))
 
         # save every epoch 
-        epoch_dir = os.path.join(base_dir, f"epoch{epoch+1}")
+        epoch_dir = os.path.join(base_dir, f"epoch{epoch}")
         os.makedirs(epoch_dir, exist_ok=True)
         model.save_pretrained(epoch_dir)
         tokenizer.save_pretrained(epoch_dir)
         torch.save(optimizer.state_dict(), os.path.join(epoch_dir, "optimizer.pt"))
-        print(f"Saved checkpoint for epoch {epoch+1} in {epoch_dir}")
+        print(f"Saved checkpoint for epoch {epoch} in {epoch_dir}")
 
         # save loss after each epoch 
         with open(loss_file_csv, "w", newline="") as f:
@@ -248,7 +259,7 @@ def train_model(tokenizer, model, descr, train_dataset, valid_dataset,
             best_val_loss = avg_val_loss
             no_improve = 0
             # Save best model 
-            print(f"🔹 New best model at epoch {epoch+1} (val_loss={avg_val_loss:.4f})")
+            print(f"🔹 New best model at epoch {epoch} (val_loss={avg_val_loss:.4f})")
             model.save_pretrained(best_model_dir)
             tokenizer.save_pretrained(best_model_dir)
             torch.save(optimizer.state_dict(), os.path.join(best_model_dir, "optimizer.pt"))
@@ -256,7 +267,7 @@ def train_model(tokenizer, model, descr, train_dataset, valid_dataset,
             no_improve += 1
             print(f"[EarlyStop] No improvement #{no_improve}/{patience}")
             if no_improve >= patience:
-                print(f"Stopping early at epoch {epoch+1}")
+                print(f"Stopping early at epoch {epoch}")
                 break
 
         
@@ -310,8 +321,11 @@ def main():
     tokenizer = EsmTokenizer.from_pretrained(model_path)
     model = EsmForMaskedLM.from_pretrained(model_path)
 
-    fs_tokenized_df = tokenize_and_mask_seqs(fs_train_df, tokenizer, window_size)
-    fs_train_dataset = TorchDataset(fs_tokenized_df)
+    train_tokenized_df = tokenize_and_mask_seqs(fs_train_df, tokenizer, window_size)
+    fs_train_dataset = TorchDataset(train_tokenized_df)
+
+    valid_tokenized_df = tokenize_and_mask_seqs(fs_valid_df, tokenizer, window_size)
+    fs_valid_dataset = TorchDataset(valid_tokenized_df)
 
     # Set up LoRA
     lora_config = LoraConfig(
@@ -325,7 +339,8 @@ def main():
 
     t6 = timer()
     print('\n\nStarting training!')
-    train_model(tokenizer, model, descr, fs_train_dataset, lora_config, batch_size, max_epochs)
+    train_model(tokenizer, model, descr, fs_train_dataset, fs_valid_dataset, lora_config, batch_size, max_epochs)
+
     t7 = timer()
     print(f"Total Time for training model: {t7 - t6:.4f} seconds")
 

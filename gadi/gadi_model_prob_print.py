@@ -219,11 +219,7 @@ def main():
     # Sort by pos
     fs_filtered = fs_filtered.sort_values(by='pos', ascending=True).reset_index(drop=True)
     fs_filtered = fs_filtered[(fs_filtered['pos'] >= 450) & (fs_filtered['pos'] <= 1120)]
-    print(fs_filtered)
-    exit()
-
-    print('ms training samples', ms_mutation_list)
-    print('fs training samples', fs_mutation_list)
+    
 
     # Load original ESM-2 model
     base_model_name = f"/g/data/gi52/jaime/esm2_{params}M_model"

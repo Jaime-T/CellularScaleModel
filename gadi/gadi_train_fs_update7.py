@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 
 """
-Frameshift model 
-
-Make heatmap after each epoch
 5 epochs 
 Rearranged train function
 Progress tracking, plus model, tokeniser and optimiser saving 
@@ -151,82 +148,18 @@ def plot_loss(loss_per_epoch, descr, base_dir):
     plt.close()
     print(f"Saved loss plot to {plot_path}")
 
-def generate_heatmap(protein_sequence, model, tokenizer, start_pos=1, end_pos=None):
-    model.eval()
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-
-    decoded = tokenizer(protein_sequence, return_tensors="pt").to(device)
-    input_ids = decoded['input_ids']
-    sequence_length = input_ids.shape[1] - 2
-
-    if end_pos is None:
-        end_pos = sequence_length
-
-    amino_acids = list("ACDEFGHIKLMNPQRSTVWY")
-    heatmap = np.zeros((20, end_pos - start_pos + 1))
-
-    for position in range(start_pos, end_pos + 1):
-        masked_input_ids = input_ids.clone()
-        masked_input_ids[0, position] = tokenizer.mask_token_id
-
-        with torch.no_grad():
-            logits = model(masked_input_ids).logits
-            probabilities = torch.nn.functional.softmax(logits[0, position], dim=0)
-            log_probabilities = torch.log(probabilities)
-
-        wt_residue = input_ids[0, position].item()
-        log_prob_wt = log_probabilities[wt_residue].item()
-
-        for i, aa in enumerate(amino_acids):
-            aa_id = tokenizer.convert_tokens_to_ids(aa)
-            log_prob_mt = log_probabilities[aa_id].item()
-            heatmap[i, position - start_pos] = log_prob_mt - log_prob_wt
-
-    return heatmap, amino_acids
-
-def plot_heatmap(gene, data, title, sequence, amino_acids, base_dir):
-    plt.figure(figsize=(20, 5))
-    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto", vmin=-20, vmax=20)
-    plt.yticks(range(20), amino_acids)
-    plt.ylabel("Amino Acid Mutations")
-
-    seq_len = len(sequence)
-    xticks_positions = list(range(0, seq_len, 50)) # mark every 50th position
-    # ensure last position is shown too
-    if seq_len - 1 not in xticks_positions:
-        xticks_positions.append(seq_len - 1)
-    # set ticks and labels
-    plt.xticks(xticks_positions, [str(pos) for pos in xticks_positions])
-    plt.xlabel("Position in Protein Sequence")
-    plt.title(title + ' 650M')
-    plt.colorbar(label="Log Likelihood Ratio (LLR)")
-    plt.tight_layout()
-    
-    # Define the path
-    save_path = os.path.join(base_dir, f"heatmaps/{gene}/{title.replace(' ', '_')}.png")
-    folder = os.path.dirname(save_path)
-
-    # Create the directory if it doesn't exist
-    os.makedirs(folder, exist_ok=True)
-
-    # Save the figure
-    plt.savefig(save_path, dpi=300)
-
-def train_model(tokenizer, base_model,frozen_base_model, descr, train_dataset, valid_dataset, 
+def train_model(tokenizer, base_model, descr, train_dataset, valid_dataset, 
                 lora_config, batch_size=6, max_epochs=20, lr=5e-5, 
                 patience=3,min_delta=1e-4):
     
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    # LoRA-wrapped trainable model
-    model = get_peft_model(base_model, lora_config)
-    optimizer = AdamW(model.parameters(), lr=lr)
-    model.print_trainable_parameters()
-    model.to(device)
+    peft_model = get_peft_model(base_model, lora_config)
+    optimizer = AdamW(peft_model.parameters(), lr=lr)
+    peft_model.print_trainable_parameters()
+    peft_model.to(device)
 
     # directories
-    base_dir = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run8.2"
+    base_dir = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run6"
     os.makedirs(base_dir, exist_ok=True)
 
     best_model_dir = os.path.join(base_dir, "best_model")
@@ -260,32 +193,18 @@ def train_model(tokenizer, base_model,frozen_base_model, descr, train_dataset, v
 
     print(f"Batch size: {batch_size}, Batches per epoch: {len(train_loader)}")
 
-    # make heatmaps for frozen model:
-
-        # myc
-    myc_gene = "myc"
-    myc_sequence = "MDFFRVVENQQPPATMPLNVSFTNRNYDLDYDSVQPYFYCDEEENFYQQQQQSELQPPAPSEDIWKKFELLPTPPLSPSRRSGLCSPSYVAVTPFSLRGDNDGGGGSFSTADQLEMVTELLGGDMVNQSFICDPDDETFIKNIIIQDCMWSGFSAAAKLVSEKLASYQAARKDSGSPNPARGHSVCSTSSLYLQDLSAAASECIDPSVVFPYPLNDSSSPKSCASQDSSAFSPSSDSLLSSTESSPQGSPEPLVLHEETPPTTSSDSEEEQEDEEEIDVVSVEKRQAPGKRSESGSPSAGGHSKPPHSPLVLKRCHVSTHQHNYAAPPSTRKDYPAAKRVKLDSVRVLRQISNNRKCTSPRSSDTEENVKRRTHNVLERQRRNELKRSFFALRDQIPELENNEKAPKVVILKKATAYILSVQAEEQKLISEEDLLRKRREQLKHKLEQLRNSCA"
-    myc_base_heatmap, amino_acids = generate_heatmap(myc_sequence, frozen_base_model, tokenizer)
-    plot_heatmap(myc_gene, myc_base_heatmap, "Original ESM2 Model (LLRs)", myc_sequence, amino_acids, base_dir)
-
-        # tp53
-    tp53_gene = "tp53"
-    tp53_sequence = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD"
-    tp53_base_heatmap, amino_acids = generate_heatmap(tp53_sequence, frozen_base_model, tokenizer)
-    plot_heatmap(tp53_gene, tp53_base_heatmap, "Original ESM2 Model (LLRs)", tp53_sequence, amino_acids, base_dir)
-                
     # -- Training loop --
     for epoch in range(max_epochs):
         # Training 
         print(f"\nStarting training for epoch {epoch}...")
         epoch_start = timer()
-        model.train()
+        peft_model.train()
         total_loss = 0
 
         for batch_idx, batch in enumerate(train_loader):
             batch = {k: v.to(device, non_blocking=True) for k, v in batch.items()}
             optimizer.zero_grad(set_to_none=True)
-            outputs = model(**batch)
+            outputs = peft_model(**batch)
             loss = outputs.loss
             loss.backward()
             optimizer.step()
@@ -294,32 +213,25 @@ def train_model(tokenizer, base_model,frozen_base_model, descr, train_dataset, v
             # save progress every batch
             torch.save({"epoch": epoch, "batch_idx": batch_idx}, progress_file)
 
-            # make heatmap every 1000 batches
-            if (batch_idx + 1) % 1000 == 0:  
+            # save checkpoint every 500 batches
+            if (batch_idx + 1) % 500 == 0:  
                 batch_num = batch_idx + 1 
-
-                # plot heatmap for myc gene 
-                myc_fs_heatmap, _ = generate_heatmap(myc_sequence, model, tokenizer)
-                myc_fs_diff_heatmap = myc_fs_heatmap - myc_base_heatmap
-                plot_heatmap(myc_gene, myc_fs_heatmap, f"Epoch {epoch}, Batch {batch_num}: Fine-tuned Frameshift Model (LLRs)", myc_sequence, amino_acids, base_dir)
-                plot_heatmap(myc_gene, myc_fs_diff_heatmap, f"Epoch {epoch}, Batch {batch_num}: Difference (Fine-tuned Frameshift - Original)", myc_sequence, amino_acids, base_dir)
-                
-                # plot heatmap for tp53 gene 
-                tp53_fs_heatmap, _ = generate_heatmap(tp53_sequence, model, tokenizer)
-                tp53_fs_diff_heatmap = tp53_fs_heatmap - tp53_base_heatmap
-                plot_heatmap(tp53_gene, tp53_fs_heatmap, f"Epoch {epoch}, Batch {batch_num}: Fine-tuned Frameshift Model (LLRs)", tp53_sequence, amino_acids, base_dir)
-                plot_heatmap(tp53_gene, tp53_fs_diff_heatmap, f"Epoch {epoch}, Batch {batch_num}: Difference (Fine-tuned Frameshift - Original)", tp53_sequence, amino_acids, base_dir)
-                print(f"\nMake heatmap at epoch {epoch}, batch {batch_num} for MYC and TP53")
+                batch_dir = os.path.join(base_dir, f"epoch{epoch}_batch{batch_num}")
+                os.makedirs(batch_dir, exist_ok=True)
+                peft_model.save_pretrained(batch_dir)
+                tokenizer.save_pretrained(batch_dir)
+                torch.save(optimizer.state_dict(), os.path.join(batch_dir, "optimizer.pt"))
+                print(f"Saved checkpoint at epoch {epoch}, batch {batch_num}")
 
         avg_train_loss = total_loss / len(train_loader)
 
         # Validation
-        model.eval()
+        peft_model.eval()
         val_loss = 0
         with torch.no_grad():
             for batch in valid_loader:
                 batch = {k: v.to(device) for k, v in batch.items()}
-                loss = model(**batch).loss
+                loss = peft_model(**batch).loss
                 val_loss += loss.item()
         avg_val_loss = val_loss / len(valid_loader)
 
@@ -331,25 +243,10 @@ def train_model(tokenizer, base_model,frozen_base_model, descr, train_dataset, v
         # save every epoch 
         epoch_dir = os.path.join(base_dir, f"epoch{epoch}")
         os.makedirs(epoch_dir, exist_ok=True)
-        model.save_pretrained(epoch_dir)
+        peft_model.save_pretrained(epoch_dir)
         tokenizer.save_pretrained(epoch_dir)
         torch.save(optimizer.state_dict(), os.path.join(epoch_dir, "optimizer.pt"))
         print(f"Saved checkpoint for epoch {epoch} in {epoch_dir}")
-
-        # plot heatmap for myc gene 
-        myc_fs_heatmap, _ = generate_heatmap(myc_sequence, model, tokenizer)
-        myc_fs_diff_heatmap = myc_fs_heatmap - myc_base_heatmap
-
-        plot_heatmap(myc_gene, myc_fs_heatmap, f"Epoch {epoch}: Fine-tuned Frameshift Model (LLRs)", myc_sequence, amino_acids, base_dir)
-        plot_heatmap(myc_gene, myc_fs_diff_heatmap, f"Epoch {epoch}: Difference (Fine-tuned Frameshift - Original)", myc_sequence, amino_acids, base_dir)
-        print(f"Plotted heatmap for Epoch{epoch} for gene MYC")
-
-        # plot heatmap for tp53 gene 
-        tp53_fs_heatmap, _ = generate_heatmap(tp53_sequence, model, tokenizer)
-        tp53_fs_diff_heatmap = tp53_fs_heatmap - tp53_base_heatmap
-        plot_heatmap(tp53_gene, tp53_fs_heatmap, f"Epoch {epoch}: Fine-tuned Frameshift Model (LLRs)", tp53_sequence, amino_acids, base_dir)
-        plot_heatmap(tp53_gene, tp53_fs_diff_heatmap, f"Epoch {epoch}: Difference (Fine-tuned Frameshift - Original)", tp53_sequence, amino_acids, base_dir)
-        print(f"Plotted heatmap for Epoch{epoch} for gene TP53")
 
         # save loss after each epoch 
         with open(loss_file_csv, "w", newline="") as f:
@@ -362,8 +259,8 @@ def train_model(tokenizer, base_model,frozen_base_model, descr, train_dataset, v
             best_val_loss = avg_val_loss
             no_improve = 0
             # Save best model 
-            print(f"New best model at epoch {epoch} (val_loss={avg_val_loss:.4f})")
-            model.save_pretrained(best_model_dir)
+            print(f"🔹 New best model at epoch {epoch} (val_loss={avg_val_loss:.4f})")
+            peft_model.save_pretrained(best_model_dir)
             tokenizer.save_pretrained(best_model_dir)
             torch.save(optimizer.state_dict(), os.path.join(best_model_dir, "optimizer.pt"))
         else:
@@ -376,7 +273,7 @@ def train_model(tokenizer, base_model,frozen_base_model, descr, train_dataset, v
         
     #  after loop finishes 
     print("\nTraining complete.")
-    '''
+
     # reload best model (with adapters) and merge 
     print("Loading best model for merging...")
     best_model = EsmForMaskedLM.from_pretrained(best_model_dir)
@@ -389,14 +286,12 @@ def train_model(tokenizer, base_model,frozen_base_model, descr, train_dataset, v
     os.makedirs(final_dir, exist_ok=True)
     best_model.save_pretrained(final_dir)
     tokenizer.save_pretrained(final_dir)
-    print(f" Saved final merged BEST {descr} model to {final_dir}")
-    '''
+    print(f"✅ Saved final merged BEST {descr} model to {final_dir}")
 
     # Plot and save loss plot
     plot_loss(loss_per_epoch, descr="Frameshift Model Finetuning", base_dir=base_dir)
-    return
 
-    #return f"{descr} training complete. Best merged model saved to {final_dir}"
+    return f"{descr} training complete. Best merged model saved to {final_dir}"
 
 
 def main():
@@ -424,14 +319,7 @@ def main():
     # Load original ESM-2 model
     model_path = f"/g/data/gi52/jaime/esm2_{model_params_millions}M_model"
     tokenizer = EsmTokenizer.from_pretrained(model_path)
-    base_model = EsmForMaskedLM.from_pretrained(model_path)
-
-    # frozen baseline
-    frozen_base_model = EsmForMaskedLM.from_pretrained(model_path)
-    frozen_base_model.eval()
-    for p in frozen_base_model.parameters():
-        p.requires_grad = False
-
+    model = EsmForMaskedLM.from_pretrained(model_path)
 
     train_tokenized_df = tokenize_and_mask_seqs(fs_train_df, tokenizer, window_size)
     fs_train_dataset = TorchDataset(train_tokenized_df)
@@ -451,7 +339,7 @@ def main():
 
     t6 = timer()
     print('\n\nStarting training!')
-    train_model(tokenizer, base_model, frozen_base_model, descr, fs_train_dataset, fs_valid_dataset, lora_config, batch_size, max_epochs)
+    train_model(tokenizer, model, descr, fs_train_dataset, fs_valid_dataset, lora_config, batch_size, max_epochs)
 
     t7 = timer()
     print(f"Total Time for training model: {t7 - t6:.4f} seconds")

@@ -1,41 +1,26 @@
-#!/usr/bin/env python3
-"""
-Compute CSM scores for ClinVar mutations using batched inference with ESM2.
-
-Steps:
-1. Load ClinVar–DepMap joined data
-2. DO NOT Filter for unique mutations
-3. Load pretrained ESM2 model and adapter
-4. Batch all mutations by protein sequence
-5. Compute ESM and CSM scores efficiently
-6. Save results
-
-"""
-
 import os
 import re
-import torch
 import pandas as pd
+from tqdm import tqdm
+import torch
 from peft import PeftModel
 from transformers import EsmForMaskedLM, EsmTokenizer
-from tqdm import tqdm
 
-# ---------------------------------------------------------------------
 # Helper function: batched mutation scoring
 # ---------------------------------------------------------------------
 def compute_mut_scores_for_sequence(model, tokenizer, mutations, sequence, device,  batch_size=4):
     model.eval()
 
     # Tokenize sequence once
-    encoded = tokenizer(sequence, return_tensors="pt").to(device)
-    base_input_ids = encoded["input_ids"]
+    encoded = tokenizer(sequence, return_tensors="pt", truncation=True, max_length=1024).to(device)
 
-    scores = []
+    scores = {}
 
     for i in range(0, len(mutations), batch_size):
         batch_muts = mutations[i : i + batch_size]
 
-        input_ids_batch = []
+        input_ids = encoded["input_ids"].repeat(len(batch_muts), 1)
+
         mask_positions = []
         aa_indices = []
 
@@ -47,12 +32,8 @@ def compute_mut_scores_for_sequence(model, tokenizer, mutations, sequence, devic
                     raise ValueError(
                         f"Wildtype mismatch at {pos+1}: expected {wt}, found {sequence[pos]}"
                     )
-                
                 # Mask the position (+1 for BOS)
-                masked_input = base_input_ids.clone()
-                masked_input[0, pos + 1] = tokenizer.mask_token_id
-                input_ids_batch.append(masked_input)
-
+                input_ids[j, pos + 1] = tokenizer.mask_token_id
                 mask_positions.append(pos + 1)
                 aa_indices.append(tokenizer.convert_tokens_to_ids(mt))
             except Exception as e:
@@ -66,36 +47,35 @@ def compute_mut_scores_for_sequence(model, tokenizer, mutations, sequence, devic
 
         for j, mut in enumerate(batch_muts):
             if mask_positions[j] is None:
-                scores.append(None)
+                scores[mut] = None
             else:
-                scores.append(log_probs[j, mask_positions[j], aa_indices[j]].item())
+                scores[mut] = log_probs[j, mask_positions[j], aa_indices[j]].item()
 
-        del logits, log_probs, input_ids, input_ids_batch
+        del logits, log_probs, input_ids
         torch.cuda.empty_cache()
     return scores
+    
 
-
-# ---------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------
 def main():
-    print("Starting CSM scoring...", flush=True)
+
+    output_dir="/g/data/gi52/jaime/clinvar/run11_ms/batched5_all_genes"
+    start_index=4760  # Index to resume from
+    final_path = os.path.join(output_dir, "all_clinvar_csm_scores.csv")
 
     # Input and output paths
     input_csv = "/g/data/gi52/jaime/data/clinvar_depmap_joined.csv"
     base_model_path = "/g/data/gi52/jaime/esm2_650M_model"
     adapter_path = "/g/data/gi52/jaime/trained/esm2_650M_model/missense/run11/epoch0_batch10000"
-    output_dir = "/g/data/gi52/jaime/clinvar/run11_ms/batched7_all_genes"
-    os.makedirs(output_dir, exist_ok=True)
-    final_path = os.path.join(output_dir, "all_clinvar_csm_scores.csv")
+
 
     # Load data
     cols = ["Name", "HGNC_ID", "GeneSymbol", "ClinicalSignificance", "ProteinChange", "wt_protein_seq"]
     df = pd.read_csv(input_csv, usecols=cols, low_memory=False)
+    df = df.drop_duplicates(subset=["Name", "ClinicalSignificance"]).copy()
     print(f"Loaded {len(df)} unique mutations", flush=True)
-    print(f" Example protein changes: {df['ProteinChange'].head().tolist()}", flush=True)
 
-    # Load model + adapter
+
+     # Load model + adapter
     print("Loading ESM2 model and adapter...", flush=True)
     tokenizer = EsmTokenizer.from_pretrained(base_model_path)
     base_model = EsmForMaskedLM.from_pretrained(base_model_path)
@@ -115,12 +95,10 @@ def main():
     frozen_base_model = frozen_base_model.to(device)
 
     # Group by sequence for batching
-    grouped = df.groupby("wt_protein_seq", sort=False)
+    grouped = df.groupby("wt_protein_seq")
     num_groups = df["wt_protein_seq"].nunique()
-    num_genes = df["GeneSymbol"].nunique()
     print(f"Total unique sequences to process: {num_groups}", flush=True)  
-    print(f"Total unique genes to process: {num_genes}", flush=True)  
-    print(f"Number of TP53 mutations: {len(df[df['GeneSymbol'] == 'TP53'])}", flush=True)
+
 
 
     # Check if we’re appending to an existing file
@@ -128,53 +106,46 @@ def main():
     if header_written:
         print(f"Appending to existing output file: {final_path}", flush=True)
 
-    results = []
-    #resume_index = 277 # skip TTN for now
-    resume_index = 5292 # test MUC16 gene  
+    print(f"Starting from group index {start_index}", flush=True)
+
     for i, (seq, group) in enumerate(tqdm(grouped, desc="Processing sequences")):
-        if i < resume_index:
+        # ⏭ Skip until the desired starting index
+        if i < start_index:
             continue
+
+        if start_index > 0 and not header_written:
+            raise RuntimeError("Starting from nonzero index, but output file missing! Possible overwrite.")
+
 
         print(f"Processing group {i} / {num_groups}", flush=True)
         print(f"Gene symbols in this group: {group['GeneSymbol'].unique()}", flush=True)
 
         muts = [re.sub(r"^p\.", "", m) for m in group["ProteinChange"].dropna()]
-        
-        # compute both scores 
+
+        # Compute both scores
         esm_scores = compute_mut_scores_for_sequence(frozen_base_model, tokenizer, muts, seq, device)
         csm_scores = compute_mut_scores_for_sequence(csm_model, tokenizer, muts, seq, device)
 
-        mask = group["ProteinChange"].notna()
-        # assign the new column via loc
-        group.loc[mask, "esm_score"] = pd.Series(esm_scores, index=group.loc[mask].index)
-        group.loc[mask, "csm_score"] = pd.Series(csm_scores, index=group.loc[mask].index)
+        group["esm_score"] = group["ProteinChange"].map(lambda x: esm_scores.get(re.sub(r"^p\.", "", x), None))
+        group["csm_score"] = group["ProteinChange"].map(lambda x: csm_scores.get(re.sub(r"^p\.", "", x), None))
 
-
-        #group["esm_score"] = group["ProteinChange"].map(lambda x: esm_scores.get(re.sub(r"^p\.", "", x), None))
-        #group["csm_score"] = group["ProteinChange"].map(lambda x: csm_scores.get(re.sub(r"^p\.", "", x), None))
-        results.append(group)
-
-        # save first group as example
-        if i == 0:
-            example_path = os.path.join(output_dir, "example_first_sequence_batch.csv")
+        # Save first processed group example (if starting fresh)
+        if i == start_index:
+            example_path = os.path.join(output_dir, f"cont_example_sequence_batch_{i}.csv")
             group.to_csv(example_path, index=False)
             print(f"Saved example batch to {example_path}", flush=True)
 
-        # Save periodically
-        if (i + 1) % 20 == 0:
-            checkpoint = os.path.join(output_dir, f"checkpoint_seqbatch_{i+1}.csv")
-            group.to_csv(checkpoint, index=False)
-            print(f"Saved checkpoint: {checkpoint}", flush=True)
-
-        
         # Append directly to the final output file
         group.to_csv(final_path, mode="a", index=False, header=not header_written)
         header_written = True
         print(f"Appended results of group {i} to {final_path}", flush=True)
-        
+
+
+
+        # Optional: release GPU memory
+        torch.cuda.empty_cache()
+
     print(f"Processing complete — results appended to {final_path}", flush=True)
-
-
-
+    
 if __name__ == "__main__":
     main()

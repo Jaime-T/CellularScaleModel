@@ -546,7 +546,7 @@ def main():
     mut_valid_tokenized = mut_tokenize_and_mask_seqs(ms_valid_df, tokenizer, window_size)
     mut_valid_data = TorchDataset(mut_valid_tokenized)
 
-    wt_valid_tokenized = random_tokenize_and_mask_seqs(ms_valid_df, tokenizer, window_size)
+    wt_valid_tokenized = mut_tokenize_and_mask_seqs(ms_valid_df, tokenizer, window_size)
     wt_valid_data = TorchDataset(wt_valid_tokenized)
 
     # Set up LoRA

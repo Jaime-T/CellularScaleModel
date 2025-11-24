@@ -92,7 +92,7 @@ def main():
         # save intermediate results
         if (i + 1) % 5000 == 0:
             print(f"Processed {i + 1} mutations, saving intermediate results...")
-            uni_mutations.to_csv(f"/g/data/gi52/jaime/clinvar/esm_intermediate_scores/esm_scores_intermediate{idx}.csv", index=False)
+            uni_mutations.to_csv(f"/g/data/gi52/jaime/clinvar/esm_intermediate_scores/esm_scores_intermediate{i}.csv", index=False)
             torch.cuda.empty_cache()
 
 

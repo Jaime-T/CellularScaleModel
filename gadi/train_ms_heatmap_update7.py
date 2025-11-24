@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
 """
-Frameshift model 
-
 Make heatmap after each epoch
 5 epochs 
 Rearranged train function
@@ -187,7 +185,7 @@ def generate_heatmap(protein_sequence, model, tokenizer, start_pos=1, end_pos=No
 
 def plot_heatmap(gene, data, title, sequence, amino_acids, base_dir):
     plt.figure(figsize=(20, 5))
-    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto", vmin=-20, vmax=20)
+    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto")
     plt.yticks(range(20), amino_acids)
     plt.ylabel("Amino Acid Mutations")
 
@@ -212,8 +210,10 @@ def plot_heatmap(gene, data, title, sequence, amino_acids, base_dir):
 
     # Save the figure
     plt.savefig(save_path, dpi=300)
+    print(f"Saved {gene} heatmap to {save_path}")
+    plt.close() 
 
-def train_model(tokenizer, base_model,frozen_base_model, descr, train_dataset, valid_dataset, 
+def train_model(tokenizer, base_model, frozen_base_model, descr, train_dataset, valid_dataset, 
                 lora_config, batch_size=6, max_epochs=20, lr=5e-5, 
                 patience=3,min_delta=1e-4):
     
@@ -226,7 +226,7 @@ def train_model(tokenizer, base_model,frozen_base_model, descr, train_dataset, v
     model.to(device)
 
     # directories
-    base_dir = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run8.2"
+    base_dir = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run7"
     os.makedirs(base_dir, exist_ok=True)
 
     best_model_dir = os.path.join(base_dir, "best_model")
@@ -276,7 +276,7 @@ def train_model(tokenizer, base_model,frozen_base_model, descr, train_dataset, v
                 
     # -- Training loop --
     for epoch in range(max_epochs):
-        # Training 
+
         print(f"\nStarting training for epoch {epoch}...")
         epoch_start = timer()
         model.train()
@@ -294,9 +294,11 @@ def train_model(tokenizer, base_model,frozen_base_model, descr, train_dataset, v
             # save progress every batch
             torch.save({"epoch": epoch, "batch_idx": batch_idx}, progress_file)
 
-            # make heatmap every 1000 batches
-            if (batch_idx + 1) % 1000 == 0:  
+            # make heatmap every 5000 batches
+            if (batch_idx + 1) % 5000 == 0:  
                 batch_num = batch_idx + 1 
+                batch_loss = total_loss / batch_num
+                print(f"[Epoch {epoch}] Batch {batch_num}/{len(train_loader)} | Avg Loss: {batch_loss:.4f}")
 
                 # plot heatmap for myc gene 
                 myc_fs_heatmap, _ = generate_heatmap(myc_sequence, model, tokenizer)
@@ -309,24 +311,8 @@ def train_model(tokenizer, base_model,frozen_base_model, descr, train_dataset, v
                 tp53_fs_diff_heatmap = tp53_fs_heatmap - tp53_base_heatmap
                 plot_heatmap(tp53_gene, tp53_fs_heatmap, f"Epoch {epoch}, Batch {batch_num}: Fine-tuned Frameshift Model (LLRs)", tp53_sequence, amino_acids, base_dir)
                 plot_heatmap(tp53_gene, tp53_fs_diff_heatmap, f"Epoch {epoch}, Batch {batch_num}: Difference (Fine-tuned Frameshift - Original)", tp53_sequence, amino_acids, base_dir)
-                print(f"\nMake heatmap at epoch {epoch}, batch {batch_num} for MYC and TP53")
 
         avg_train_loss = total_loss / len(train_loader)
-
-        # Validation
-        model.eval()
-        val_loss = 0
-        with torch.no_grad():
-            for batch in valid_loader:
-                batch = {k: v.to(device) for k, v in batch.items()}
-                loss = model(**batch).loss
-                val_loss += loss.item()
-        avg_val_loss = val_loss / len(valid_loader)
-
-        epoch_time = timer() - epoch_start
-        print(f"Epoch {epoch}: train loss ={avg_train_loss:.4f}, valid loss ={avg_val_loss:.4f} | time: {epoch_time:.2f}s")
-        
-        loss_per_epoch.append((epoch, avg_train_loss, avg_val_loss))
 
         # save every epoch 
         epoch_dir = os.path.join(base_dir, f"epoch{epoch}")
@@ -334,7 +320,27 @@ def train_model(tokenizer, base_model,frozen_base_model, descr, train_dataset, v
         model.save_pretrained(epoch_dir)
         tokenizer.save_pretrained(epoch_dir)
         torch.save(optimizer.state_dict(), os.path.join(epoch_dir, "optimizer.pt"))
-        print(f"Saved checkpoint for epoch {epoch} in {epoch_dir}")
+        print(f"Saved checkpoint for epoch {epoch} in {epoch_dir}\n")
+
+        # Validation
+        model.eval()
+        val_loss = 0
+        with torch.no_grad():
+            for i, batch in enumerate(valid_loader):
+                batch = {k: v.to(device) for k, v in batch.items()}
+                loss = model(**batch).loss
+                val_loss += loss.item()
+
+                if (i + 1) % 5000 == 0:  
+                    batch_num = i + 1 
+                    batch_val_loss = val_loss / batch_num
+                    print(f"[Epoch {epoch}] Batch {batch_num}/{len(valid_loader)} | Avg Loss: {batch_val_loss:.4f}")
+        avg_val_loss = val_loss / len(valid_loader)
+
+        epoch_time = timer() - epoch_start
+        print(f"Epoch {epoch}: train loss ={avg_train_loss:.4f}, valid loss ={avg_val_loss:.4f} | time: {epoch_time:.2f}s")
+        
+        loss_per_epoch.append((epoch, avg_train_loss, avg_val_loss))
 
         # plot heatmap for myc gene 
         myc_fs_heatmap, _ = generate_heatmap(myc_sequence, model, tokenizer)
@@ -407,19 +413,19 @@ def main():
     batch_size = 8
     window_size = 1022
     model_params_millions = 650
-    descr = "frameshift"
+    descr = "missense"
     max_epochs = 5
 
     # Load missense data
     data_path = Path("./data")
-    fs_df = pd.read_parquet(data_path / "update2_all_fs_samples.parquet")
+    ms_test_df_df = pd.read_parquet(data_path / "update2_all_ms_samples.parquet")
 
     # Split data into 75% train, 5% validate, 20% test 
     test_size = 0.20
-    fs_train_df, fs_test_df = train_test_split(fs_df, test_size=test_size, random_state=0)
+    ms_test_df_train_df, ms_test_df_test_df = train_test_split(ms_test_df_df, test_size=test_size, random_state=0)
     valid_size = 0.0625 
-    fs_train_df, fs_valid_df = train_test_split(fs_train_df, test_size=valid_size, random_state=0)
-    print("Train, Valid, Test split is:", len(fs_train_df), len(fs_valid_df), len(fs_test_df))
+    ms_test_df_train_df, ms_test_df_valid_df = train_test_split(ms_test_df_train_df, test_size=valid_size, random_state=0)
+    print("Train, Valid, Test split is:", len(ms_test_df_train_df), len(ms_test_df_valid_df), len(ms_test_df_test_df))
 
     # Load original ESM-2 model
     model_path = f"/g/data/gi52/jaime/esm2_{model_params_millions}M_model"
@@ -433,11 +439,11 @@ def main():
         p.requires_grad = False
 
 
-    train_tokenized_df = tokenize_and_mask_seqs(fs_train_df, tokenizer, window_size)
-    fs_train_dataset = TorchDataset(train_tokenized_df)
+    train_tokenized_df = tokenize_and_mask_seqs(ms_test_df_train_df, tokenizer, window_size)
+    ms_test_df_train_dataset = TorchDataset(train_tokenized_df)
 
-    valid_tokenized_df = tokenize_and_mask_seqs(fs_valid_df, tokenizer, window_size)
-    fs_valid_dataset = TorchDataset(valid_tokenized_df)
+    valid_tokenized_df = tokenize_and_mask_seqs(ms_test_df_valid_df, tokenizer, window_size)
+    ms_test_df_valid_dataset = TorchDataset(valid_tokenized_df)
 
     # Set up LoRA
     lora_config = LoraConfig(
@@ -451,7 +457,7 @@ def main():
 
     t6 = timer()
     print('\n\nStarting training!')
-    train_model(tokenizer, base_model, frozen_base_model, descr, fs_train_dataset, fs_valid_dataset, lora_config, batch_size, max_epochs)
+    train_model(tokenizer, base_model, frozen_base_model, descr, ms_test_df_train_dataset, ms_test_df_valid_dataset, lora_config, batch_size, max_epochs)
 
     t7 = timer()
     print(f"Total Time for training model: {t7 - t6:.4f} seconds")

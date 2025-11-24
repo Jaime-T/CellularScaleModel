@@ -16,6 +16,7 @@ import torch.nn as nn
 import torch.optim as optim
 from transformers import EsmForMaskedLM, EsmTokenizer
 from sklearn.model_selection import train_test_split
+from peft import PeftModel, PeftConfig
 
 def parse_hgvs(protein_change):
     """Extract WT AA, position, and mutant AA from HGVS string like 'p.A586V'."""
@@ -60,10 +61,10 @@ def generate_heatmap(protein_sequence, model, tokenizer, start_pos=1, end_pos=No
 
     return heatmap, amino_acids
 
-def plot_heatmap_with_dots(data, descr, gene, title, sequence, amino_acids, mutation_list, start_pos=1):
+def plot_heatmap_with_dots(data, gene, title, sequence, amino_acids, mutation_list, start_pos=1):
 
     plt.figure(figsize=(20, 5))
-    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto")
+    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto", vmin=-20, vmax=10)
     plt.ylabel("Amino Acid Mutations")
     plt.yticks(range(len(amino_acids)), amino_acids)
     plt.xlabel("Position in Protein Sequence")
@@ -97,16 +98,16 @@ def plot_heatmap_with_dots(data, descr, gene, title, sequence, amino_acids, muta
     plt.tight_layout()
 
     # Define the path
-    save_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run5/heatmaps/{gene}/{title.replace(' ', '_')}.png"
+    save_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/frameshift/run6/heatmaps/{gene}/{title.replace(' ', '_')}.png"
     folder = os.path.dirname(save_path)
 
     os.makedirs(folder, exist_ok=True)
     plt.savefig(save_path, dpi=300)
     plt.close()
 
-def plot_heatmap(descr, params, gene, data, title, sequence, amino_acids):
+def plot_heatmap(gene, data, title, sequence, amino_acids):
     plt.figure(figsize=(20, 5))
-    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto", vmin=None, vmax=None)
+    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto", vmin=-20, vmax=10)
     plt.yticks(range(20), amino_acids)
     plt.ylabel("Amino Acid Mutations")
 
@@ -118,12 +119,12 @@ def plot_heatmap(descr, params, gene, data, title, sequence, amino_acids):
     # set ticks and labels
     plt.xticks(xticks_positions, [str(pos) for pos in xticks_positions])
     plt.xlabel("Position in Protein Sequence")
-    plt.title(title + ' ' + str(params) + 'M')
+    plt.title(title + ' 650M')
     plt.colorbar(label="Log Likelihood Ratio (LLR)")
     plt.tight_layout()
     
     # Define the path
-    save_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run5/heatmaps/{gene}/{title.replace(' ', '_')}.png"
+    save_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/frameshift/run6/heatmaps/{gene}/{title.replace(' ', '_')}.png"
     folder = os.path.dirname(save_path)
 
     # Create the directory if it doesn't exist
@@ -157,61 +158,29 @@ def topk_predictions(model, tokenizer, protein_seq, masked_pos, k=5):
 
 def main():
 
-    # Model Parameters (in millions) of finetuned model
-    params = 650
-
     # Sequence and gene of interest 
-    sequence = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD"
-    gene = "tp53"
+    #sequence = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD"
+    #gene = "tp53"
+
+    gene = "myc"
+    sequence = "MDFFRVVENQQPPATMPLNVSFTNRNYDLDYDSVQPYFYCDEEENFYQQQQQSELQPPAPSEDIWKKFELLPTPPLSPSRRSGLCSPSYVAVTPFSLRGDNDGGGGSFSTADQLEMVTELLGGDMVNQSFICDPDDETFIKNIIIQDCMWSGFSAAAKLVSEKLASYQAARKDSGSPNPARGHSVCSTSSLYLQDLSAAASECIDPSVVFPYPLNDSSSPKSCASQDSSAFSPSSDSLLSSTESSPQGSPEPLVLHEETPPTTSSDSEEEQEDEEEIDVVSVEKRQAPGKRSESGSPSAGGHSKPPHSPLVLKRCHVSTHQHNYAAPPSTRKDYPAAKRVKLDSVRVLRQISNNRKCTSPRSSDTEENVKRRTHNVLERQRRNELKRSFFALRDQIPELENNEKAPKVVILKKATAYILSVQAEEQKLISEEDLLRKRREQLKHKLEQLRNSCA"
+
 
     # Load original ESM-2 model
-    base_model_name = f"/g/data/gi52/jaime/esm2_{params}M_model"
+    base_model_name = f"/g/data/gi52/jaime/esm2_650M_model"
     base_tokenizer = EsmTokenizer.from_pretrained(base_model_name)
     base_model = EsmForMaskedLM.from_pretrained(base_model_name)
-
-    # Load missense fine-tuned model
-    ms_model_path = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run7/epoch0"
-    ms_tokenizer = EsmTokenizer.from_pretrained(ms_model_path)
-    ms_model = EsmForMaskedLM.from_pretrained(ms_model_path)
-
-    # Load Frameshift fine-tuned model
-    fs_model_path = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/frameshift/run7/final_merged"
-    fs_tokenizer = EsmTokenizer.from_pretrained(fs_model_path)
-    fs_model = EsmForMaskedLM.from_pretrained(fs_model_path)
-
-    # Generate heatmaps
     base_heatmap, amino_acids = generate_heatmap(sequence, base_model, base_tokenizer)
-    ms_heatmap, _ = generate_heatmap(sequence, ms_model, ms_tokenizer)
-    fs_heatmap, _ = generate_heatmap(sequence, fs_model, fs_tokenizer)
+    #plot_heatmap(gene, base_heatmap, "Original ESM2 Model (LLRs)", sequence, amino_acids)
+    #print("Plotted original model heatmap")
 
-    # Compute difference
-    ms_diff_heatmap = ms_heatmap - base_heatmap
-    fs_diff_heatmap = fs_heatmap - base_heatmap
-
-    plot_heatmap("original", params, gene, base_heatmap, "Original ESM2 Model (LLRs)", sequence, amino_acids)
-
-    plot_heatmap("missense", params, gene, ms_heatmap, "Fine-tuned Missense Model (LLRs)", sequence, amino_acids)
-    plot_heatmap("missense", params, gene, ms_diff_heatmap, "Difference (Fine-tuned Missense - Original)", sequence, amino_acids)
-
-    plot_heatmap("frameshift", params, gene, fs_heatmap, "Fine-tuned Frameshift Model (LLRs)", sequence, amino_acids)
-    plot_heatmap("frameshift", params, gene, fs_diff_heatmap, "Difference (Fine-tuned Frameshift - Original)", sequence, amino_acids)
-
+ 
     # Load mutations and split as it was during training  
     data_path = Path("./data")
     test_size = 0.2
-    valid_size = 0.0625
+    valid_size = 0.25
 
-        # missense
-    ms_df = pd.read_parquet(data_path / "update2_all_ms_samples.parquet")
-    ms_train_df, ms_test_df = train_test_split(ms_df, test_size=test_size, random_state=0)
-    ms_train_df, ms_valid_df = train_test_split(ms_train_df, test_size=valid_size, random_state=0)
-    ms_filtered = (
-        ms_train_df[ms_train_df['HugoSymbol'] == gene.upper()][['ProteinChange']] 
-    )
-    ms_mutation_list = ms_filtered['ProteinChange'].tolist()
-    print('one of the ms protein changes in list', ms_mutation_list[0])
-
-        # frameshift 
+    # frameshift 
     fs_df = pd.read_parquet(data_path / "update2_all_fs_samples.parquet")
     fs_train_df, fs_test_df = train_test_split(fs_df, test_size=test_size, random_state=0)
     fs_train_df, fs_valid_df = train_test_split(fs_train_df, test_size=valid_size, random_state=0)
@@ -220,23 +189,80 @@ def main():
         fs_train_df[fs_train_df['HugoSymbol'] == gene.upper()][['ProteinChange']] 
     )
     fs_mutation_list = fs_filtered['ProteinChange'].tolist()
-    print('one of the fs protein changes in list', fs_mutation_list[0])
 
-    # Generate heatmap with mutations as dots in positions
-    plot_heatmap_with_dots(ms_diff_heatmap, "missense", gene, "Difference (Fine-tuned Missense - Original) with Mutations", sequence, amino_acids, ms_mutation_list, start_pos=0)
 
-    plot_heatmap_with_dots(fs_diff_heatmap, "frameshift", gene, "Difference (Fine-tuned Frameshift - Original) with Mutations", sequence, amino_acids, fs_mutation_list, start_pos=0)
+    for epoch in range(5):
+        print(f"\nstarting plotting for epoch{epoch}")
+        
+        base_model_name = f"/g/data/gi52/jaime/esm2_650M_model"
+        base_model = EsmForMaskedLM.from_pretrained(base_model_name)
 
-    # Compare amino acid predictions
-    masked_pos = 175
+        # Load fine-tuned model 
+        epoch_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/frameshift/run6/epoch{epoch}"
 
-    original_preds = topk_predictions(base_model, base_tokenizer, sequence, masked_pos)
-    ms_preds = topk_predictions(ms_model, ms_tokenizer, sequence, masked_pos)
-    fs_preds = topk_predictions(fs_model, fs_tokenizer, sequence, masked_pos)
+        ''' 
+        # Inspect config
+        cfg = PeftConfig.from_pretrained(epoch_path)
+        print("PEFT config:", cfg)
+        print(PeftConfig.from_pretrained(epoch_path).to_dict())
 
-    print(f"Original model top predictions at position {masked_pos}:", original_preds)
-    print(f"Fine-tuned missense model top predictions at position {masked_pos}:", ms_preds)
-    print(f"Fine-tuned frameshift model top predictions at position {masked_pos}:", fs_preds)
+        peft_config = PeftConfig.from_pretrained(epoch_path)
+        peft_model = PeftModel.from_pretrained(base_model, epoch_path, config=peft_config)
+        peft_model.print_trainable_parameters()
+        merged_model = peft_model.merge_and_unload()
+        print('merged')
+        merged_model.print_trainable_parameters()
+        merged_model.eval()
+        '''
+
+        #merged_model = PeftModel.from_pretrained(epoch_path)
+        merged_model = EsmForMaskedLM.from_pretrained(epoch_path)
+        # ms_tokenizer = EsmTokenizer.from_pretrained(epoch_path)
+
+        # Generate heatmaps
+        fs_heatmap, _ = generate_heatmap(sequence, merged_model, base_tokenizer)
+
+        # Compute difference
+        fs_diff_heatmap = fs_heatmap - base_heatmap
+
+        plot_heatmap(gene, fs_heatmap, f"Epoch{epoch}: Fine-tuned Frameshift Model (LLRs)", sequence, amino_acids)
+        plot_heatmap(gene, fs_diff_heatmap, f"Epoch{epoch}: Difference (Fine-tuned Frameshift - Original) (LLRs)", sequence, amino_acids)
+
+        # Generate heatmap with mutations as dots in positions
+        plot_heatmap_with_dots(fs_diff_heatmap, gene, f"Epoch{epoch}: Difference (Fine-tuned Frameshift - Original) with Mutations", sequence, amino_acids, fs_mutation_list, start_pos=0)
+        
+        # Compare amino acid predictions
+        masked_pos = 74
+
+        original_preds = topk_predictions(base_model, base_tokenizer, sequence, masked_pos)
+        fs_preds = topk_predictions(merged_model, base_tokenizer, sequence, masked_pos)
+
+        print(f"Epoch {epoch}: Original model top predictions at position {masked_pos}:", original_preds)
+        print(f"Epoch {epoch}: Fine-tuned frameshift model top predictions at position {masked_pos}:", fs_preds)
+
+        for batch in range(2000, 6001, 2000):
+            # Load fine-tuned model 
+            batch_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/frameshift/run6/epoch{epoch}_batch{batch}"
+            #batch_model = PeftModel.from_pretrained(base_model, batch_path)
+            #merged_batch_model = batch_model.merge_and_unload()
+            batch_model = EsmForMaskedLM.from_pretrained(batch_path)
+
+            # Generate heatmaps
+            fs_heatmap, _ = generate_heatmap(sequence, batch_model, base_tokenizer)
+
+            # Compute difference
+            fs_diff_heatmap = fs_heatmap - base_heatmap
+
+            plot_heatmap(gene, fs_heatmap, f"Epoch{epoch}, batch{batch} checkpoint: Fine-tuned Frameshift Model (LLRs)", sequence, amino_acids)
+            plot_heatmap(gene, fs_diff_heatmap, f"Epoch{epoch}, batch{batch} checkpoint: Difference (Fine-tuned Frameshift - Original) (LLRs)", sequence, amino_acids)
+
+            # Compare amino acid predictions
+
+            original_preds = topk_predictions(base_model, base_tokenizer, sequence, masked_pos)
+            fs_preds = topk_predictions(batch_model, base_tokenizer, sequence, masked_pos)
+
+            print(f"\nEpoch {epoch}, Batch {batch}: Original model top predictions at position {masked_pos}:", original_preds)
+            print(f"Epoch {epoch}, Batch {batch}: Fine-tuned frameshift model top predictions at position {masked_pos}:", fs_preds)
 
 
 if __name__ == '__main__':

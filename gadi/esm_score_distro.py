@@ -92,11 +92,9 @@ def extremity_mut_distro_plot(csm_data, save_dir, xlabel="csm_score", num=1):
     # Custom color mapping
     color_map = {
         "Pathogenic": "red",
-        "Likely pathogenic": "salmon",
-        "Likely benign": "lime",
         "Benign": "green",
         "Uncertain significance": "yellow",
-        "Conflicting classifications of pathogenicity": "orange"
+        "Conflicting classifications of pathogenicity": "grey"
     }
 
     # method 1: seaborn kdeplot
@@ -147,86 +145,27 @@ def main():
 
     #tp53_clinvar = pd.read_csv("/g/data/gi52/jaime/clinvar/clinvar_tp53_mutations_1letter.csv")
     tp53_clinvar = pd.read_csv("/g/data/gi52/jaime/clinvar/tp53_esm2_baseline_scores.csv")
+    df = tp53_clinvar.copy()
 
-    # tp53 protein sequence
-    tp53 = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD"
-    ''' 
-    # Precompute ESM baseline scores once
-    print("Precomputing baseline ESM2 scores...")
-    for row in tp53_clinvar.itertuples():
-        mutation = row.ProteinChange
-        idx = row.Index
-        if pd.isna(mutation):
-            continue
-        try:
-            esm_score = compute_mut_score(base_model, tokenizer, mutation, tp53)
-            tp53_clinvar.loc[idx, "esm_score"] = esm_score
-        except ValueError as e:
-            print(e)
-            tp53_clinvar.loc[idx, "esm_score"] = None
+    # rename columns for plotting
+    csm_data = df.rename(
+        columns={"Germline.classification": "clinvar_label"}
+    )
 
-    # Save intermediate file to reuse later
-    esm_cache_path = "/g/data/gi52/jaime/clinvar/tp53_esm2_baseline_scores.csv"
-    tp53_clinvar.to_csv(esm_cache_path, index=False)
-    '''
-
-    for batch_num in range(4000, 5001, 1000):
-
-        print(f"Processing batch number: {batch_num}")
-        base_model = EsmForMaskedLM.from_pretrained(base_model_path)
-        # Load adapters for CSM finetuned model 
-        csm_adapter_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/missense/run10/epoch0_batch{batch_num}"
-
-        # Load the adapter into the model
-        model = PeftModel.from_pretrained(base_model, csm_adapter_path, is_trainable=False )
-
-        # Merge the adapter weights into the base model
-        csm_model = model.merge_and_unload()
-        csm_model.eval()
-
-        # save path 
-        save_dir = f"/g/data/gi52/jaime/clinvar/run10_ms/epoch0_batch{batch_num}"
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-
-        df = tp53_clinvar.copy()
-
-        # Calculate the CSM scores for each mutation and append to dataframe
-        for row in df.itertuples():
-            mutation = row.ProteinChange
-            idx = row.Index
-            if pd.isna(mutation):
-                continue
-            try:
-                csm_score = compute_mut_score(csm_model, tokenizer, mutation, tp53)
-                df.loc[idx, 'csm_score'] = csm_score
-            except ValueError as e:
-                print(e)
-                df.loc[idx, 'csm_score'] = None
+        
+    save_dir = f"/g/data/gi52/jaime/clinvar"
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
 
 
-        # Save the final results
-        save_path = os.path.join(save_dir, "tp53_clinvar_csm_scores.csv")
-        df.to_csv(save_path, index=False)
-        print(f"Saved CSM results to {save_path}")
+    # filter out only Pathogenic, Benign, and Uncertain Significance
+    filtered_data = csm_data[csm_data['clinvar_label'].isin(['Pathogenic', 'Benign', 'Uncertain significance', 'Conflicting classifications of pathogenicity'])]
 
-        # rename columns for plotting
-        csm_data = df.rename(
-            columns={"Germline.classification": "clinvar_label"}
-        )
+    extremity_mut_distro_plot(filtered_data, save_dir, xlabel="esm_score", num=5)
 
-        # Graph the distribution of scores for each ClinVar category
-        #mut_distro_plot(csm_data, save_dir, xlabel="csm_score", num=1)
-        #mut_distro_plot(csm_data, save_dir, xlabel="esm_score", num=2)
-
-        # filter out only Pathogenic, Benign, and Uncertain Significance
-        filtered_data = csm_data[csm_data['clinvar_label'].isin(['Pathogenic', 'Benign', 'Uncertain significance', 'Likely pathogenic', 'Likely benign', 'Conflicting classifications of pathogenicity'])]
-        extremity_mut_distro_plot(filtered_data, save_dir, xlabel="csm_score", num=3)
-        extremity_mut_distro_plot(filtered_data, save_dir, xlabel="esm_score", num=4)
-
-        # delete models to free up memory
-        del csm_model, model, base_model
-        torch.cuda.empty_cache()
+    # delete models to free up memory
+    del base_model
+    torch.cuda.empty_cache()
 
 
 

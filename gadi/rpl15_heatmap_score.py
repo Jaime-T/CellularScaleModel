@@ -142,7 +142,7 @@ def custom_plot_heatmap(data, gene, title, sequence, base_dir, amino_acids):
     # set ticks and labels
     plt.xticks(xticks_positions, [str(pos) for pos in xticks_positions])
     plt.xlabel("Position in Protein Sequence")
-    plt.title(f"{title} for {gene.upper()}")
+    plt.title(title + ' 650M')
     plt.colorbar(label="Log Likelihood Ratio (LLR)")
     plt.tight_layout()
     
@@ -181,7 +181,7 @@ def scaled_plot_heatmap(data, gene, title, sequence, base_dir, amino_acids):
     # set ticks and labels
     plt.xticks(xticks_positions, [str(pos) for pos in xticks_positions])
     plt.xlabel("Position in Protein Sequence")
-    plt.title(f"{title} for {gene.upper()}")
+    plt.title(title + ' ' + '650M')
     plt.colorbar(label="Log Likelihood Ratio (LLR) with Standardised Scale -1 to 1")
     plt.tight_layout()
     
@@ -220,14 +220,80 @@ def topk_predictions(model, tokenizer, protein_seq, masked_pos, k=5):
 
     return list(zip(top_tokens, top_probs))
 
+def cartesian_plot(base_heatmap, ms_heatmap, save_dir, gene):
+    """
+    Plot ESM (base model) score versus CSM score scatter plot.
+    Each point represents a specific amino acid substitution at a given position.
+    """
+    # Flatten both matrices (20 x sequence_length)
+    y = base_heatmap.flatten()  # ESM scores
+    x = ms_heatmap.flatten()    # CSM scores
+
+    # --- Create plot ---
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.scatter(x, y, alpha=0.7, s=10)
+
+
+    # --- Axis limits ---
+    min_val = min(x.min(), y.min())
+    max_val = max(x.max(), y.max())
+    ax.set_xlim(min_val, max_val)
+    ax.set_ylim(min_val, max_val)
+    ax.set_aspect('equal', adjustable='box')
+    print(f"Axis limits set to [{min_val}, {max_val}]")
+
+    # --- Ticks every 5 units ---
+    ax.set_xticks(np.arange(0, min_val - 5, -5))
+    ax.set_yticks(np.arange(0, min_val - 5, -5))
+    print(f"Ticks set every -5 units, e.g. {ax.get_xticks()}")
+
+    # Invert both axes to make values decrease
+    ax.invert_xaxis()
+ 
+
+    # --- Keep axes on left and top ---
+    ax.spines['left'].set_visible(True)
+    ax.spines['top'].set_visible(True)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+
+    # Move labels to left/top
+    ax.xaxis.set_label_position('top')
+    ax.xaxis.tick_top()
+    ax.yaxis.set_label_position('left')
+    ax.yaxis.tick_left()
+
+    # --- Add grid and labels ---
+    ax.grid(True, linestyle='--', alpha=0.3)
+    plt.title(f"CSM Score vs ESM Score for {gene.upper()}")
+    plt.ylabel("ESM Score")
+    plt.xlabel("CSM Score")
+
+    # add red dashed lines at x=-5 
+    plt.axvline(x=-5, color='r', linestyle='--')
+
+    # add solid diagonal line y=x
+    plt.plot([min_val, max_val], [min_val, max_val], color='black', linestyle='-')
+
+    plt.tight_layout()
+
+    # save 
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)   
+
+    save_path = os.path.join(save_dir, f"esm_vs_csm_heatmap_scatter_{gene}.png")
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Saved to {save_path}")
+
 def main():
 
     # Model Parameters (in millions) of finetuned model
     params = 650
 
     # Sequence and gene of interest 
-    #gene = "rpl15"  # Example gene for negative control
-    #sequence = "MGAYKYIQELWRKKQSDVMRFLLRVRCWQYRQLSALHRAPRPTRPDKARRLGYKAKQGYVIYRIRVRRGGRKRPVPKGATYGKPVHHGVNQLKFARSLQSVAEERAGRHCGALRVLNSYWVGEDSTYKFFEVILIDPFHKAIRRNPDTQWITKPVHKHREMRGLTSAGRKSRGLGKGHKFHHTIGGSRRAAWRRRNTLQLHRYR"
+    rpl15_gene = "rpl15"  # Example gene for negative control
+    rpl15_sequence = "MGAYKYIQELWRKKQSDVMRFLLRVRCWQYRQLSALHRAPRPTRPDKARRLGYKAKQGYVIYRIRVRRGGRKRPVPKGATYGKPVHHGVNQLKFARSLQSVAEERAGRHCGALRVLNSYWVGEDSTYKFFEVILIDPFHKAIRRNPDTQWITKPVHKHREMRGLTSAGRKSRGLGKGHKFHHTIGGSRRAAWRRRNTLQLHRYR"
 
     tp53_sequence = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD"
     tp53_gene = "tp53"
@@ -237,65 +303,73 @@ def main():
     myc_sequence = "MDFFRVVENQQPPATMPLNVSFTNRNYDLDYDSVQPYFYCDEEENFYQQQQQSELQPPAPSEDIWKKFELLPTPPLSPSRRSGLCSPSYVAVTPFSLRGDNDGGGGSFSTADQLEMVTELLGGDMVNQSFICDPDDETFIKNIIIQDCMWSGFSAAAKLVSEKLASYQAARKDSGSPNPARGHSVCSTSSLYLQDLSAAASECIDPSVVFPYPLNDSSSPKSCASQDSSAFSPSSDSLLSSTESSPQGSPEPLVLHEETPPTTSSDSEEEQEDEEEIDVVSVEKRQAPGKRSESGSPSAGGHSKPPHSPLVLKRCHVSTHQHNYAAPPSTRKDYPAAKRVKLDSVRVLRQISNNRKCTSPRSSDTEENVKRRTHNVLERQRRNELKRSFFALRDQIPELENNEKAPKVVILKKATAYILSVQAEEQKLISEEDLLRKRREQLKHKLEQLRNSCA"
    
     # rpl2 - gene for negative control
-    rpl_gene = "rpl2"  
-    rpl_sequence = "MILKKYKPTTPSLRGLVQIDRSLLWKGDPVKKLTVGMIESAGRNNTGRITVYHRGGGHKTKYRYIDFKRSNYNIPGIVERLEYDPNRTCFIALIKDNENNFSYILAPHDLKVGDTVITGNDIDIRIGNTLPLRNIPIGTMIHNIELNPGKGGKIVRSAGSSAQLISKDENGFCMLKLPSGEYRLFPNNSLATIGILSNIDNKNIKIGKAGRSRWMGRRPIVRGVAMNPVDHPHGGGEGKTSGGRPSVTPWSWPTKGQPTRSKRKYNKLIVQRAKKKI"
-   
+    rpl2_gene = "rpl2"  
+    rpl2_sequence = "MILKKYKPTTPSLRGLVQIDRSLLWKGDPVKKLTVGMIESAGRNNTGRITVYHRGGGHKTKYRYIDFKRSNYNIPGIVERLEYDPNRTCFIALIKDNENNFSYILAPHDLKVGDTVITGNDIDIRIGNTLPLRNIPIGTMIHNIELNPGKGGKIVRSAGSSAQLISKDENGFCMLKLPSGEYRLFPNNSLATIGILSNIDNKNIKIGKAGRSRWMGRRPIVRGVAMNPVDHPHGGGEGKTSGGRPSVTPWSWPTKGQPTRSKRKYNKLIVQRAKKKI"
+
+    
     gene_dict = {
+        rpl15_gene: rpl15_sequence,
         tp53_gene: tp53_sequence,
         myc_gene: myc_sequence,
-        rpl_gene: rpl_sequence
+        rpl2_gene: rpl2_sequence
     }
 
     # Load original ESM-2 model
     base_model_name = f"/g/data/gi52/jaime/esm2_{params}M_model"
     tokenizer = EsmTokenizer.from_pretrained(base_model_name)
+    
+    base_model = EsmForMaskedLM.from_pretrained(base_model_name)
 
-    for batch_num in range(10000, 10001, 1000):
+    # Load missense fine-tuned model
+    ms_adapter_path = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run11/epoch0_batch10000"
+    # Load the adapter into the model
+    ms_model = PeftModel.from_pretrained(base_model, ms_adapter_path, is_trainable=False )
 
-        print(f"Processing batch number: {batch_num}")
+    # Merge the adapter weights into the base model
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    csm_model = ms_model.merge_and_unload()
+    csm_model.eval()
+    csm_model = csm_model.to(device)
+
+    # Load base model separately for comparison
+    frozen_base_model = EsmForMaskedLM.from_pretrained(base_model_name)
+    frozen_base_model.eval()
+    for p in frozen_base_model.parameters():
+        p.requires_grad = False
+    frozen_base_model = frozen_base_model.to(device)
+
+    base_dir = f"/g/data/gi52/jaime/clinvar/run11_ms/scatter_plot_check"
+    os.makedirs(base_dir, exist_ok=True)
+
+    for gene in gene_dict.keys():
+        sequence = gene_dict[gene]
+
+        print(f"Generating heatmaps for {gene} using ESM2-{params}M models with sequence {sequence}...")
+
+        # Generate heatmaps
+        base_heatmap, amino_acids = generate_heatmap(sequence, frozen_base_model, tokenizer)
+        ms_heatmap, _ = generate_heatmap(sequence, csm_model, tokenizer)
+
+        # plot all the values of base_heatmap as esm_score
+        # plot all th evalues of ms_heatmap as csm_score
+        cartesian_plot(base_heatmap, ms_heatmap, base_dir, gene)
+        continue
+        # Compute difference
+        ms_diff_heatmap = ms_heatmap - base_heatmap
+    
+        # Generate heatmap with scaling -1 to 1
+        scaled_plot_heatmap(base_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Original ESM2 Model (LLRs)", sequence, base_dir, amino_acids)
+        scaled_plot_heatmap(ms_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Fine-tuned Missense Model (LLRs)", sequence, base_dir, amino_acids)
         
-        base_model = EsmForMaskedLM.from_pretrained(base_model_name)
-
-        # Load missense fine-tuned model
-        ms_adapter_path = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run8/epoch0_batch{batch_num}"
-        # Load the adapter into the model
-        ms_model = PeftModel.from_pretrained(base_model, ms_adapter_path, is_trainable=False)
-
-        # Merge the adapter weights into the base model
-        csm_model = ms_model.merge_and_unload()
-        csm_model.eval()
-
-        # Load base model separately for comparison
-        base_model_fresh = EsmForMaskedLM.from_pretrained(base_model_name)
-
-        base_dir = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run/heatmaps_fix"
-        os.makedirs(base_dir, exist_ok=True)
-
-        for gene in gene_dict.keys():
-            sequence = gene_dict[gene]
-
-            print(f"Generating heatmaps for {gene} using ESM2-{params}M models with sequence {sequence}...")
-
-            # Generate heatmaps
-            base_heatmap, amino_acids = generate_heatmap(sequence, base_model_fresh, tokenizer)
-            ms_heatmap, _ = generate_heatmap(sequence, csm_model, tokenizer)
-
-            # Compute difference
-            ms_diff_heatmap = ms_heatmap - base_heatmap
-        
-            # Generate heatmap with scaling -1 to 1
-            scaled_plot_heatmap(base_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Original ESM2 Model (LLRs)", sequence, base_dir, amino_acids)
-            scaled_plot_heatmap(ms_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Fine-tuned Missense Model (LLRs)", sequence, base_dir, amino_acids)
-            
-            # Use custom plot for colour 
-            custom_plot_heatmap(ms_diff_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Difference (Fine-tuned Missense - Original)", sequence, base_dir, amino_acids)
-        
-        print(f"[Batch {batch_num}] Heatmaps generated and saved to {base_dir}")
+        # Use custom plot for colour 
+        custom_plot_heatmap(ms_diff_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Difference (Fine-tuned Missense - Original)", sequence, base_dir, amino_acids)
+    
+    print(f"Heatmaps generated and saved to {base_dir}")
 
 
-        # delete models to free up memory
-        del csm_model, ms_model, base_model, base_model_fresh
-        torch.cuda.empty_cache()
+    # delete models to free up memory
+    del csm_model, ms_model, base_model, base_model_fresh
+    torch.cuda.empty_cache()
 
 
 if __name__ == '__main__':

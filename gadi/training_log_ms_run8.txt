@@ -1,0 +1,319 @@
+Epoch 0, Batch 1000/51589 | Avg Loss during training: 4.4808
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_1000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_1000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_1000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_1000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_1000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_1000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 1000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch1000
+
+Epoch 0, Batch 2000/51589 | Avg Loss during training: 3.9871
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_2000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_2000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_2000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_2000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_2000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_2000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 2000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch2000
+
+Epoch 0, Batch 3000/51589 | Avg Loss during training: 3.6323
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_3000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_3000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_3000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_3000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_3000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_3000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 3000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch3000
+
+Epoch 0, Batch 4000/51589 | Avg Loss during training: 3.4418
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_4000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_4000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_4000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_4000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_4000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_4000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 4000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch4000
+
+Epoch 0, Batch 5000/51589 | Avg Loss during training: 3.3286
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_5000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_5000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_5000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_5000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_5000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_5000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 5000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch5000
+
+Epoch 0, Batch 6000/51589 | Avg Loss during training: 3.2494
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_6000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_6000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_6000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_6000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_6000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_6000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 6000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch6000
+
+Epoch 0, Batch 7000/51589 | Avg Loss during training: 3.1915
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_7000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_7000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_7000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_7000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_7000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_7000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 7000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch7000
+
+Epoch 0, Batch 8000/51589 | Avg Loss during training: 3.1492
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_8000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_8000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_8000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_8000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_8000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_8000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 8000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch8000
+
+Epoch 0, Batch 9000/51589 | Avg Loss during training: 3.1138
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_9000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_9000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_9000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_9000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_9000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_9000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 9000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch9000
+
+Epoch 0, Batch 10000/51589 | Avg Loss during training: 3.0846
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_10000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_10000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_10000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_10000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_10000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_10000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 10000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch10000
+
+Epoch 0, Batch 11000/51589 | Avg Loss during training: 3.0610
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_11000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_11000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_11000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_11000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_11000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_11000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 11000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch11000
+
+Epoch 0, Batch 12000/51589 | Avg Loss during training: 3.0402
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_12000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_12000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_12000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_12000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_12000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_12000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 12000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch12000
+
+Epoch 0, Batch 13000/51589 | Avg Loss during training: 3.0226
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_13000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_13000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_13000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_13000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_13000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_13000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 13000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch13000
+
+Epoch 0, Batch 14000/51589 | Avg Loss during training: 3.0072
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_14000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_14000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_14000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_14000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_14000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_14000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 14000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch14000
+
+Epoch 0, Batch 15000/51589 | Avg Loss during training: 2.9932
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_15000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_15000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_15000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_15000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_15000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_15000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 15000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch15000
+
+Epoch 0, Batch 16000/51589 | Avg Loss during training: 2.9817
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_16000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_16000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_16000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_16000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_16000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_16000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 16000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch16000
+
+Epoch 0, Batch 17000/51589 | Avg Loss during training: 2.9701
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_17000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_17000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_17000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_17000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_17000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_17000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 17000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch17000
+
+Epoch 0, Batch 18000/51589 | Avg Loss during training: 2.9596
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_18000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_18000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_18000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_18000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_18000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_18000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 18000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch18000
+
+Epoch 0, Batch 19000/51589 | Avg Loss during training: 2.9505
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_19000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_19000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_19000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_19000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_19000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_19000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 19000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch19000
+
+Epoch 0, Batch 20000/51589 | Avg Loss during training: 2.9431
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_20000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_20000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_20000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_20000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_20000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_20000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 20000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch20000
+
+Epoch 0, Batch 21000/51589 | Avg Loss during training: 2.9352
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_21000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_21000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_21000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_21000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_21000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_21000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 21000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch21000
+
+Epoch 0, Batch 22000/51589 | Avg Loss during training: 2.9287
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_22000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_22000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_22000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_22000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_22000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_22000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 22000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch22000
+
+Epoch 0, Batch 23000/51589 | Avg Loss during training: 2.9229
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_23000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_23000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_23000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_23000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_23000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_23000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 23000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch23000
+
+Epoch 0, Batch 24000/51589 | Avg Loss during training: 2.9170
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_24000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_24000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_24000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_24000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_24000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_24000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 24000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch24000
+
+Epoch 0, Batch 25000/51589 | Avg Loss during training: 2.9117
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_25000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_25000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_25000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_25000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_25000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_25000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 25000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch25000
+
+Epoch 0, Batch 26000/51589 | Avg Loss during training: 2.9063
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_26000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_26000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_26000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_26000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_26000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_26000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 26000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch26000
+
+Epoch 0, Batch 27000/51589 | Avg Loss during training: 2.9006
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_27000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_27000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_27000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_27000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_27000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_27000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 27000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch27000
+
+Epoch 0, Batch 28000/51589 | Avg Loss during training: 2.8962
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_28000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_28000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_28000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_28000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_28000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_28000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 28000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch28000
+
+Epoch 0, Batch 29000/51589 | Avg Loss during training: 2.8922
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_29000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_29000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_29000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_29000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_29000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_29000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 29000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch29000
+
+Epoch 0, Batch 30000/51589 | Avg Loss during training: 2.8878
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_30000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_30000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_30000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_30000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_30000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_30000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 30000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch30000
+
+Epoch 0, Batch 31000/51589 | Avg Loss during training: 2.8841
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_31000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_31000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_31000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_31000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_31000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_31000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 31000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch31000
+
+Epoch 0, Batch 32000/51589 | Avg Loss during training: 2.8807
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_32000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_32000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_32000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_32000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_32000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_32000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 32000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch32000
+
+Epoch 0, Batch 33000/51589 | Avg Loss during training: 2.8776
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_33000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_33000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_33000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_33000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_33000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_33000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 33000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch33000
+
+Epoch 0, Batch 34000/51589 | Avg Loss during training: 2.8747
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_34000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_34000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_34000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_34000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_34000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_34000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 34000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch34000
+
+Epoch 0, Batch 35000/51589 | Avg Loss during training: 2.8714
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_35000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_35000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_35000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_35000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_35000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved rpl15 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/rpl15/Epoch_0,_Batch_35000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved checkpoint for epoch 0, batch 35000 in /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch35000
+
+Epoch 0, Batch 36000/51589 | Avg Loss during training: 2.8684
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_36000:_Fine-tuned_Missense_Model_(LLRs).png
+Saved myc heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/myc/Epoch_0,_Batch_36000:_Difference_(Fine-tuned_Missense_-_Original).png
+Saved tp53 heatmap to /g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/heatmaps/tp53/Epoch_0,_Batch_36000:_Fine-tuned_Missense_Model_(LLRs).png

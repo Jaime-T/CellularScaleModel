@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import re
+import re 
 import os
 import tempfile
 import pandas as pd
@@ -16,6 +16,8 @@ import torch.nn as nn
 import torch.optim as optim
 from transformers import EsmForMaskedLM, EsmTokenizer
 from sklearn.model_selection import train_test_split
+from peft import PeftModel
+import matplotlib.colors as mcolors
 
 def parse_hgvs(protein_change):
     """Extract WT AA, position, and mutant AA from HGVS string like 'p.A586V'."""
@@ -61,19 +63,25 @@ def generate_heatmap(protein_sequence, model, tokenizer, start_pos=1, end_pos=No
     return heatmap, amino_acids
 
 def plot_heatmap_with_dots(data, descr, gene, title, sequence, amino_acids, mutation_list, start_pos=1):
+    # Define the custom colormap
+    colors = [
+        (-20, "orange"),
+        (-1, "red"),
+        (0, "white"),
+        (1, "blue"),
+        (20, "cyan")
+    ]
+
+     # Create segmented colormap and normaliser
+    cmap = mcolors.LinearSegmentedColormap.from_list("custom_diverging", [c for _, c in colors])
+    norm = mcolors.TwoSlopeNorm(vmin=-20, vcenter=0, vmax=20)
 
     plt.figure(figsize=(20, 5))
-    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto")
-    plt.ylabel("Amino Acid Mutations")
+    plt.imshow(data, cmap=cmap, norm=norm, aspect="auto")
+    plt.xticks(range(len(sequence)), list(sequence))
     plt.yticks(range(len(amino_acids)), amino_acids)
     plt.xlabel("Position in Protein Sequence")
-    seq_len = len(sequence)
-    xticks_positions = list(range(0, seq_len, 50)) # mark every 50th position
-    # ensure last position is shown too
-    if seq_len - 1 not in xticks_positions:
-        xticks_positions.append(seq_len - 1)
-    # set ticks and labels
-    plt.xticks(xticks_positions, [str(pos) for pos in xticks_positions])
+    plt.ylabel("Amino Acid Mutations")
     plt.title(f"{title} 650M")
     plt.colorbar(label="LLR Difference (Mutant − Base)")
 
@@ -97,7 +105,7 @@ def plot_heatmap_with_dots(data, descr, gene, title, sequence, amino_acids, muta
     plt.tight_layout()
 
     # Define the path
-    save_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run5/heatmaps/{gene}/{title.replace(' ', '_')}.png"
+    save_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run4/heatmaps/{gene}/{title.replace(' ', '_')}.png"
     folder = os.path.dirname(save_path)
 
     os.makedirs(folder, exist_ok=True)
@@ -106,7 +114,50 @@ def plot_heatmap_with_dots(data, descr, gene, title, sequence, amino_acids, muta
 
 def plot_heatmap(descr, params, gene, data, title, sequence, amino_acids):
     plt.figure(figsize=(20, 5))
-    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto", vmin=None, vmax=None)
+    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto")
+    plt.yticks(range(20), amino_acids)
+    plt.ylabel("Amino Acid Mutations")
+
+    seq_len = len(sequence)
+    xticks_positions = list(range(0, seq_len, 50)) # mark every 50th position
+    # ensure last position is shown too
+    if seq_len - 1 not in xticks_positions:
+        xticks_positions.append(seq_len - 1)
+
+    # set ticks and labels
+    plt.xticks(xticks_positions, [str(pos) for pos in xticks_positions])
+    plt.xlabel("Position in Protein Sequence")
+
+    plt.title(title + ' ' + str(params) + 'M')
+    plt.colorbar(label="Log Likelihood Ratio (LLR)")
+    plt.tight_layout()
+    
+    # Define the path
+    save_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run4/heatmaps/{gene}/{title.replace(' ', '_')}.png"
+    folder = os.path.dirname(save_path)
+
+    # Create the directory if it doesn't exist
+    os.makedirs(folder, exist_ok=True)
+
+    # Create the directory if it doesn't exist
+    print(f"Saving heatmap to {save_path}")
+
+    # Save the figure
+    plt.savefig(save_path, dpi=300)
+    plt.close()
+
+def scaled_plot_heatmap(descr, params, gene, data, title, sequence, amino_acids):
+
+    # scaling data to -1 to 1
+    data_min = np.min(data)
+    data_max = np.max(data)
+    if data_max != data_min:
+        data = 2 * (data - data_min) / (data_max - data_min) - 1
+    else:
+        print("Warning: Heatmap has constant values. Skipping scaling.")
+
+    plt.figure(figsize=(20, 5))
+    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto")
     plt.yticks(range(20), amino_acids)
     plt.ylabel("Amino Acid Mutations")
 
@@ -119,11 +170,57 @@ def plot_heatmap(descr, params, gene, data, title, sequence, amino_acids):
     plt.xticks(xticks_positions, [str(pos) for pos in xticks_positions])
     plt.xlabel("Position in Protein Sequence")
     plt.title(title + ' ' + str(params) + 'M')
+    plt.colorbar(label="Log Likelihood Ratio (LLR) with Standardised Scale")
+    plt.tight_layout()
+    
+    # Define the path
+    save_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run4/heatmaps/{gene}/{title.replace(' ', '_')}.png"
+    folder = os.path.dirname(save_path)
+
+
+    # Create the directory if it doesn't exist
+    print(f"Saving heatmap to {save_path}")
+    os.makedirs(folder, exist_ok=True)
+
+    # Save the figure
+    plt.savefig(save_path, dpi=300)
+    plt.close()
+
+def custom_plot_heatmap(descr, params, gene, data, title, sequence, amino_acids):
+
+    # Define the custom colormap
+    colors = [
+        (-20, "orange"),
+        (-1, "red"),
+        (0, "white"),
+        (1, "blue"),
+        (20, "cyan")
+    ]
+
+    # Create segmented colormap and normaliser
+    cmap = mcolors.LinearSegmentedColormap.from_list("custom_diverging", [c for _, c in colors])
+    norm = mcolors.TwoSlopeNorm(vmin=-20, vcenter=0, vmax=20)
+
+    plt.figure(figsize=(20, 5))
+    plt.imshow(data, cmap=cmap, norm=norm, aspect="auto")
+    plt.yticks(range(20), amino_acids)
+    plt.ylabel("Amino Acid Mutations")
+
+    seq_len = len(sequence)
+    xticks_positions = list(range(0, seq_len, 50)) # mark every 50th position
+    # ensure last position is shown too
+    if seq_len - 1 not in xticks_positions:
+        xticks_positions.append(seq_len - 1)
+    # set ticks and labels
+    plt.xticks(xticks_positions, [str(pos) for pos in xticks_positions])
+    plt.xlabel("Position in Protein Sequence")
+    plt.title(title + ' 650M')
     plt.colorbar(label="Log Likelihood Ratio (LLR)")
     plt.tight_layout()
     
     # Define the path
-    save_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run5/heatmaps/{gene}/{title.replace(' ', '_')}.png"
+    # Define the path
+    save_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run4/heatmaps/{gene}/{title.replace(' ', '_')}.png"
     folder = os.path.dirname(save_path)
 
     # Create the directory if it doesn't exist
@@ -131,6 +228,8 @@ def plot_heatmap(descr, params, gene, data, title, sequence, amino_acids):
 
     # Save the figure
     plt.savefig(save_path, dpi=300)
+    print(f"Saved {gene} heatmap to {save_path}")
+    plt.close() 
 
 def topk_predictions(model, tokenizer, protein_seq, masked_pos, k=5):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -161,8 +260,8 @@ def main():
     params = 650
 
     # Sequence and gene of interest 
-    sequence = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD"
     gene = "tp53"
+    sequence = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD"
 
     # Load original ESM-2 model
     base_model_name = f"/g/data/gi52/jaime/esm2_{params}M_model"
@@ -170,17 +269,28 @@ def main():
     base_model = EsmForMaskedLM.from_pretrained(base_model_name)
 
     # Load missense fine-tuned model
-    ms_model_path = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run7/epoch0"
+    ms_model_path = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run4/epoch2"
     ms_tokenizer = EsmTokenizer.from_pretrained(ms_model_path)
     ms_model = EsmForMaskedLM.from_pretrained(ms_model_path)
 
+    # NEW!!: 
+    ms_model_merge = PeftModel.from_pretrained(base_model, ms_model_path, is_trainable=False )
+    # merge adapter into base
+    ms_model = ms_model_merge.merge_and_unload()
+    ms_model.eval()
+
+    # Load base model separately for comparison
+    base_model_fresh = EsmForMaskedLM.from_pretrained(base_model_name)
+
+
     # Load Frameshift fine-tuned model
-    fs_model_path = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/frameshift/run7/final_merged"
+    fs_model_path = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/frameshift/run4/final_merged"
     fs_tokenizer = EsmTokenizer.from_pretrained(fs_model_path)
     fs_model = EsmForMaskedLM.from_pretrained(fs_model_path)
 
+
     # Generate heatmaps
-    base_heatmap, amino_acids = generate_heatmap(sequence, base_model, base_tokenizer)
+    base_heatmap, amino_acids = generate_heatmap(sequence, base_model_fresh, base_tokenizer)
     ms_heatmap, _ = generate_heatmap(sequence, ms_model, ms_tokenizer)
     fs_heatmap, _ = generate_heatmap(sequence, fs_model, fs_tokenizer)
 
@@ -196,10 +306,19 @@ def main():
     plot_heatmap("frameshift", params, gene, fs_heatmap, "Fine-tuned Frameshift Model (LLRs)", sequence, amino_acids)
     plot_heatmap("frameshift", params, gene, fs_diff_heatmap, "Difference (Fine-tuned Frameshift - Original)", sequence, amino_acids)
 
+    # NEW!! plot scaled heatmaps
+    scaled_plot_heatmap("original", params, gene, base_heatmap, "Scaled Original ESM2 Model (LLRs)", sequence, amino_acids)
+    scaled_plot_heatmap("missense", params, gene, ms_heatmap, "Scaled Fine-tuned Missense Model (LLRs)", sequence, amino_acids)
+    scaled_plot_heatmap("missense", params, gene, ms_diff_heatmap, "Scaled Difference (Fine-tuned Missense - Original)", sequence, amino_acids)
+
+    custom_plot_heatmap("frameshift", params, gene, fs_heatmap, "Scaled Fine-tuned Frameshift Model (LLRs)", sequence, amino_acids)
+    custom_plot_heatmap("frameshift", params, gene, fs_diff_heatmap, "Scaled Difference (Fine-tuned Frameshift - Original)", sequence, amino_acids)
+
+
     # Load mutations and split as it was during training  
     data_path = Path("./data")
     test_size = 0.2
-    valid_size = 0.0625
+    valid_size = 0.25
 
         # missense
     ms_df = pd.read_parquet(data_path / "update2_all_ms_samples.parquet")
@@ -209,7 +328,6 @@ def main():
         ms_train_df[ms_train_df['HugoSymbol'] == gene.upper()][['ProteinChange']] 
     )
     ms_mutation_list = ms_filtered['ProteinChange'].tolist()
-    print('one of the ms protein changes in list', ms_mutation_list[0])
 
         # frameshift 
     fs_df = pd.read_parquet(data_path / "update2_all_fs_samples.parquet")
@@ -220,17 +338,17 @@ def main():
         fs_train_df[fs_train_df['HugoSymbol'] == gene.upper()][['ProteinChange']] 
     )
     fs_mutation_list = fs_filtered['ProteinChange'].tolist()
-    print('one of the fs protein changes in list', fs_mutation_list[0])
 
     # Generate heatmap with mutations as dots in positions
     plot_heatmap_with_dots(ms_diff_heatmap, "missense", gene, "Difference (Fine-tuned Missense - Original) with Mutations", sequence, amino_acids, ms_mutation_list, start_pos=0)
 
     plot_heatmap_with_dots(fs_diff_heatmap, "frameshift", gene, "Difference (Fine-tuned Frameshift - Original) with Mutations", sequence, amino_acids, fs_mutation_list, start_pos=0)
 
-    # Compare amino acid predictions
-    masked_pos = 175
 
-    original_preds = topk_predictions(base_model, base_tokenizer, sequence, masked_pos)
+    # Compare amino acid predictions
+    masked_pos = 74
+
+    original_preds = topk_predictions(base_model_fresh, base_tokenizer, sequence, masked_pos)
     ms_preds = topk_predictions(ms_model, ms_tokenizer, sequence, masked_pos)
     fs_preds = topk_predictions(fs_model, fs_tokenizer, sequence, masked_pos)
 

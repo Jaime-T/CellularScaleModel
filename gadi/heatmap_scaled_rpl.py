@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 # scaling LLRs from -1 to 1. 
-# but for the difference heatmaps, making sure the colour value match is consistent e.g. white is always 0
 # Plot heatmaps of log likelihood ratios (LLRs) for all possible amino acid substitutions
 # across a given protein sequence using ESM-2 models (original and fine-tuned).
 # This script generates heatmaps for the original ESM-2 model and a missense fine-tuned model.
@@ -26,8 +25,6 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset, Subset 
 from transformers import EsmForMaskedLM, EsmTokenizer
 from peft import PeftModel
-import matplotlib.colors as mcolors
-import matplotlib.image as mpimg
 
 class TorchDataset(Dataset):
     def __init__(self, data):
@@ -114,50 +111,6 @@ def plot_heatmap(data, gene, title, sequence, base_dir, amino_acids):
     plt.savefig(save_path, dpi=300)
     plt.close()
 
-def custom_plot_heatmap(data, gene, title, sequence, base_dir, amino_acids):
-
-    # Define the custom colormap
-    colors = [
-        (-20, "orange"),
-        (-1, "red"),
-        (0, "white"),
-        (1, "blue"),
-        (20, "cyan")
-    ]
-
-    # Create segmented colormap and normaliser
-    cmap = mcolors.LinearSegmentedColormap.from_list("custom_diverging", [c for _, c in colors])
-    norm = mcolors.TwoSlopeNorm(vmin=-20, vcenter=0, vmax=20)
-
-    plt.figure(figsize=(20, 5))
-    plt.imshow(data, cmap=cmap, norm=norm, aspect="auto")
-    plt.yticks(range(20), amino_acids)
-    plt.ylabel("Amino Acid Mutations")
-
-    seq_len = len(sequence)
-    xticks_positions = list(range(0, seq_len, 50)) # mark every 50th position
-    # ensure last position is shown too
-    if seq_len - 1 not in xticks_positions:
-        xticks_positions.append(seq_len - 1)
-    # set ticks and labels
-    plt.xticks(xticks_positions, [str(pos) for pos in xticks_positions])
-    plt.xlabel("Position in Protein Sequence")
-    plt.title(f"{title} for {gene.upper()}")
-    plt.colorbar(label="Log Likelihood Ratio (LLR)")
-    plt.tight_layout()
-    
-    # Define the path
-    save_path = os.path.join(base_dir, f"{gene}/{title.replace(' ', '_')}.png")
-    folder = os.path.dirname(save_path)
-
-    # Create the directory if it doesn't exist
-    os.makedirs(folder, exist_ok=True)
-
-    # Save the figure
-    plt.savefig(save_path, dpi=300)
-    print(f"Saved {gene} heatmap to {save_path}")
-    plt.close() 
-
 def scaled_plot_heatmap(data, gene, title, sequence, base_dir, amino_acids):
 
     # scaling data to -1 to 1
@@ -181,8 +134,8 @@ def scaled_plot_heatmap(data, gene, title, sequence, base_dir, amino_acids):
     # set ticks and labels
     plt.xticks(xticks_positions, [str(pos) for pos in xticks_positions])
     plt.xlabel("Position in Protein Sequence")
-    plt.title(f"{title} for {gene.upper()}")
-    plt.colorbar(label="Log Likelihood Ratio (LLR) with Standardised Scale -1 to 1")
+    plt.title(title + ' ' + '650M')
+    plt.colorbar(label="Log Likelihood Ratio (LLR) with Standardised Scale")
     plt.tight_layout()
     
     # Define the path
@@ -225,73 +178,68 @@ def main():
     # Model Parameters (in millions) of finetuned model
     params = 650
 
-    # Sequence and gene of interest 
-    #gene = "rpl15"  # Example gene for negative control
-    #sequence = "MGAYKYIQELWRKKQSDVMRFLLRVRCWQYRQLSALHRAPRPTRPDKARRLGYKAKQGYVIYRIRVRRGGRKRPVPKGATYGKPVHHGVNQLKFARSLQSVAEERAGRHCGALRVLNSYWVGEDSTYKFFEVILIDPFHKAIRRNPDTQWITKPVHKHREMRGLTSAGRKSRGLGKGHKFHHTIGGSRRAAWRRRNTLQLHRYR"
-
-    tp53_sequence = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD"
-    tp53_gene = "tp53"
-
-    # myc
-    myc_gene = "myc"
-    myc_sequence = "MDFFRVVENQQPPATMPLNVSFTNRNYDLDYDSVQPYFYCDEEENFYQQQQQSELQPPAPSEDIWKKFELLPTPPLSPSRRSGLCSPSYVAVTPFSLRGDNDGGGGSFSTADQLEMVTELLGGDMVNQSFICDPDDETFIKNIIIQDCMWSGFSAAAKLVSEKLASYQAARKDSGSPNPARGHSVCSTSSLYLQDLSAAASECIDPSVVFPYPLNDSSSPKSCASQDSSAFSPSSDSLLSSTESSPQGSPEPLVLHEETPPTTSSDSEEEQEDEEEIDVVSVEKRQAPGKRSESGSPSAGGHSKPPHSPLVLKRCHVSTHQHNYAAPPSTRKDYPAAKRVKLDSVRVLRQISNNRKCTSPRSSDTEENVKRRTHNVLERQRRNELKRSFFALRDQIPELENNEKAPKVVILKKATAYILSVQAEEQKLISEEDLLRKRREQLKHKLEQLRNSCA"
-   
     # rpl2 - gene for negative control
-    rpl_gene = "rpl2"  
-    rpl_sequence = "MILKKYKPTTPSLRGLVQIDRSLLWKGDPVKKLTVGMIESAGRNNTGRITVYHRGGGHKTKYRYIDFKRSNYNIPGIVERLEYDPNRTCFIALIKDNENNFSYILAPHDLKVGDTVITGNDIDIRIGNTLPLRNIPIGTMIHNIELNPGKGGKIVRSAGSSAQLISKDENGFCMLKLPSGEYRLFPNNSLATIGILSNIDNKNIKIGKAGRSRWMGRRPIVRGVAMNPVDHPHGGGEGKTSGGRPSVTPWSWPTKGQPTRSKRKYNKLIVQRAKKKI"
+    gene = "rpl2"  
+    sequence = "MILKKYKPTTPSLRGLVQIDRSLLWKGDPVKKLTVGMIESAGRNNTGRITVYHRGGGHKTKYRYIDFKRSNYNIPGIVERLEYDPNRTCFIALIKDNENNFSYILAPHDLKVGDTVITGNDIDIRIGNTLPLRNIPIGTMIHNIELNPGKGGKIVRSAGSSAQLISKDENGFCMLKLPSGEYRLFPNNSLATIGILSNIDNKNIKIGKAGRSRWMGRRPIVRGVAMNPVDHPHGGGEGKTSGGRPSVTPWSWPTKGQPTRSKRKYNKLIVQRAKKKI"
    
-    gene_dict = {
-        tp53_gene: tp53_sequence,
-        myc_gene: myc_sequence,
-        rpl_gene: rpl_sequence
-    }
-
     # Load original ESM-2 model
     base_model_name = f"/g/data/gi52/jaime/esm2_{params}M_model"
     tokenizer = EsmTokenizer.from_pretrained(base_model_name)
 
-    for batch_num in range(10000, 10001, 1000):
+    for batch_num in range(1000, 5001, 1000):
 
         print(f"Processing batch number: {batch_num}")
         
         base_model = EsmForMaskedLM.from_pretrained(base_model_name)
 
         # Load missense fine-tuned model
-        ms_adapter_path = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run8/epoch0_batch{batch_num}"
+        ms_adapter_path = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run10/epoch0_batch{batch_num}"
         # Load the adapter into the model
-        ms_model = PeftModel.from_pretrained(base_model, ms_adapter_path, is_trainable=False)
+        ms_model = PeftModel.from_pretrained(base_model, ms_adapter_path, is_trainable=False )
 
         # Merge the adapter weights into the base model
         csm_model = ms_model.merge_and_unload()
         csm_model.eval()
 
+        #print(csm_model)
+
         # Load base model separately for comparison
         base_model_fresh = EsmForMaskedLM.from_pretrained(base_model_name)
 
-        base_dir = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run/heatmaps_fix"
+        base_dir = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run10/heatmaps_scaled"
         os.makedirs(base_dir, exist_ok=True)
 
-        for gene in gene_dict.keys():
-            sequence = gene_dict[gene]
+        print(f"Generating heatmaps for {gene} using ESM2-{params}M models...")
 
-            print(f"Generating heatmaps for {gene} using ESM2-{params}M models with sequence {sequence}...")
+        # Generate heatmaps
+        base_heatmap, amino_acids = generate_heatmap(sequence, base_model_fresh, tokenizer)
+        ms_heatmap, _ = generate_heatmap(sequence, csm_model, tokenizer)
 
-            # Generate heatmaps
-            base_heatmap, amino_acids = generate_heatmap(sequence, base_model_fresh, tokenizer)
-            ms_heatmap, _ = generate_heatmap(sequence, csm_model, tokenizer)
+        # Compute difference
+        ms_diff_heatmap = ms_heatmap - base_heatmap
 
-            # Compute difference
-            ms_diff_heatmap = ms_heatmap - base_heatmap
-        
-            # Generate heatmap with scaling -1 to 1
-            scaled_plot_heatmap(base_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Original ESM2 Model (LLRs)", sequence, base_dir, amino_acids)
-            scaled_plot_heatmap(ms_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Fine-tuned Missense Model (LLRs)", sequence, base_dir, amino_acids)
-            
-            # Use custom plot for colour 
-            custom_plot_heatmap(ms_diff_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Difference (Fine-tuned Missense - Original)", sequence, base_dir, amino_acids)
-        
+        #plot_heatmap(base_heatmap, gene, f"Epoch 0, Batch {batch_num}: Original ESM2 Model (LLRs)", sequence, base_dir, amino_acids)
+        #plot_heatmap(ms_heatmap, gene, f"Epoch 0, Batch {batch_num}: Fine-tuned Missense Model (LLRs)", sequence, base_dir, amino_acids)
+        #plot_heatmap(ms_diff_heatmap, gene, f"Epoch 0, Batch {batch_num}: Difference (Fine-tuned Missense - Original)", sequence, base_dir, amino_acids)
+
+    
+        # Generate heatmap with scaling -1 to 1
+        scaled_plot_heatmap(base_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Original ESM2 Model (LLRs)", sequence, base_dir, amino_acids)
+        scaled_plot_heatmap(ms_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Fine-tuned Missense Model (LLRs)", sequence, base_dir, amino_acids)
+        scaled_plot_heatmap(ms_diff_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Difference (Fine-tuned Missense - Original)", sequence, base_dir, amino_acids)
+       
         print(f"[Batch {batch_num}] Heatmaps generated and saved to {base_dir}")
 
+        # Compare amino acid predictions
+        masked_pos = 245
+
+        original_preds = topk_predictions(base_model_fresh, tokenizer, sequence, masked_pos)
+        ms_preds = topk_predictions(csm_model, tokenizer, sequence, masked_pos)
+        #fs_preds = topk_predictions(fs_model, fs_tokenizer, sequence, masked_pos)
+
+        print(f"Original model top predictions at position {masked_pos}:", original_preds)
+        print(f"Fine-tuned missense model top predictions at position {masked_pos}:", ms_preds)
+        #print(f"Fine-tuned frameshift model top predictions at position {masked_pos}:", fs_preds)
 
         # delete models to free up memory
         del csm_model, ms_model, base_model, base_model_fresh

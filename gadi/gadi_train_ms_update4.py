@@ -1,11 +1,6 @@
 # -*- coding: utf-8 -*-
 
 """
-Progress tracking, plus model, tokeniser and optimiser saving 
-
-Split data into 75% train, 5% validate, 20% test 
-
-Changed masking function to only mask the mutation positions 
 Using updated DepMap data, with 550281 total missense sequences 
 
 Train test set and tokenize inputs
@@ -34,10 +29,9 @@ from transformers import EsmForMaskedLM, EsmTokenizer
 import random
 from peft import get_peft_model, LoraConfig, TaskType, PeftModel
 from torch.optim import AdamW
-from torch.utils.data import DataLoader, Dataset, Subset
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 import torch.nn.functional as F
-import csv
 
 class TorchDataset(Dataset):
     def __init__(self, data):
@@ -58,7 +52,7 @@ class TorchDataset(Dataset):
             key: torch.tensor(self.data[key][idx]) for key in self.data
         }
 
-def tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022):
+def tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022, mlm_probability: float = 0.15):
     # Tokenize the batch
     encoded_seqs = tokenizer(
         batch['windowed_seq'].tolist(),
@@ -74,27 +68,23 @@ def tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022):
     # Clone to create targets
     targets = input_ids.clone()
 
-    # Mask the mutation site position: 
-    for i, (prot_change, start_index) in enumerate(zip(batch['ProteinChange'], batch['start_index'])):
+    # Create probability mask (randomly choose tokens to mask)
+    probability_matrix = torch.full(targets.shape, mlm_probability)
+    special_tokens_mask = [
+        tokenizer.get_special_tokens_mask(val, already_has_special_tokens=True)
+        for val in targets.tolist()
+    ]
+    special_tokens_mask = torch.tensor(special_tokens_mask, dtype=torch.bool)
+    probability_matrix.masked_fill_(special_tokens_mask, value=0.0)
 
-        # Extract mutation position, e.g. p.A27K → 27
-        m = re.match(r"p\.\D+(\d+)", prot_change)
-        if m:
-            mut_pos = int(m.group(1))
+    # Sample masked indices
+    masked_indices = torch.bernoulli(probability_matrix).bool()
 
-            # Convert to window-relative position
-            window_pos = mut_pos - start_index  
+    # Replace selected input_ids with [MASK] token
+    input_ids[masked_indices] = tokenizer.mask_token_id
 
-            token_index = window_pos 
-
-            if 0 <= token_index < input_ids.shape[1]:
-                # Keep only mutation site for loss
-                targets[i, :] = -100
-                targets[i, token_index] = encoded_seqs["input_ids"][i, token_index]
-
-                # Mask the mutation position
-                input_ids[i, token_index] = tokenizer.mask_token_id
-
+    # Only keep targets for masked tokens
+    targets[~masked_indices] = -100
 
     df = pd.DataFrame({
         "input_ids": input_ids.tolist(),
@@ -137,77 +127,97 @@ def plot_loss(loss_values, descr, base_dir):
     plt.savefig(f"{base_dir}/loss_plot.png", dpi=300)
     plt.close()
 
+###===###
+def testing_pretrained_model(lora_config, model, train_dataset, batch_size=6):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    model = get_peft_model(model, lora_config)
+    model.print_trainable_parameters()
+    model.to(device)
+
+    test_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
+    print(f"Batch size: {batch_size}, Batches per epoch: {len(test_loader)}")
+
+    for epoch in range(1):
+        print(f"Starting testing for epoch {epoch+1}...")
+        model.eval()
+        total_loss = 0
+        for b_itr, batch in enumerate(test_loader):
+            batch = {k: v.to(device) for k, v in batch.items()}
+            outputs = model(**batch)
+            loss = outputs.loss
+            total_loss += loss.item()
+
+            if np.mod(b_itr+1, int(round(len(test_loader)/20))) == 0:
+                print(f"Progress: {b_itr+1}/{len(test_loader) } -- {loss}")
+
+        avg_loss = total_loss / len(test_loader)
+        print("#---")
+        print(f"Total loss: {total_loss}")
+        print(f"Avg loss: {avg_loss}")
+
+    return total_loss
+###===###
+
 def train_model(tokenizer, model, descr, train_dataset, lora_config, batch_size=6, epochs=3, lr=5e-5):
+    t0 = timer()
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
     model.to(device)
     optimizer = AdamW(model.parameters(), lr=lr)
 
-    # set up files to save progress to  
-    base_dir = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run6"
-    os.makedirs(base_dir, exist_ok=True)
+    t1 = timer()
+    print(f"Setup time: {t1 - t0:.3f}s")
 
-    progress_file = os.path.join(base_dir, "progress.pt")
-    loss_file_csv = os.path.join(base_dir, "loss_per_epoch.csv")
-
-
-    # Shuffle dataset once
-    indices = np.random.permutation(len(train_dataset))
-    shuffled_dataset = Subset(train_dataset, indices)
-    train_loader = DataLoader(
-        shuffled_dataset, batch_size=batch_size, shuffle=False,
-        num_workers=1, pin_memory=True
-    )
-
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
+    t2 = timer()
+    print(f"DataLoader init time: {t2 - t1:.3f}s")
     print(f"Batch size: {batch_size}, Batches per epoch: {len(train_loader)}")
 
     loss_per_epoch = []
+    base_dir = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run4"
+    os.makedirs(base_dir, exist_ok=True)
+
     for epoch in range(epochs):
-        print(f"\nStarting training for epoch {epoch}...")
+        print(f"\nStarting training for epoch {epoch+1}...")
         epoch_start = timer()
         model.train()
         total_loss = 0
-
-        for batch_idx, batch in enumerate(train_loader):
-            batch = {k: v.to(device, non_blocking=True) for k, v in batch.items()}
-            optimizer.zero_grad(set_to_none=True)
+        for i, batch in enumerate(train_loader):
+            batch_start = timer()
+            batch = {k: v.to(device) for k, v in batch.items()}
             outputs = model(**batch)
             loss = outputs.loss
             loss.backward()
             optimizer.step()
+            optimizer.zero_grad()
             total_loss += loss.item()
-
-            # save progress every batch
-            torch.save({"epoch": epoch, "batch_idx": batch_idx}, progress_file)
-            if (batch_idx) % 100 == 0:
-                print(f"Epoch {epoch}, Batch {batch_idx}/{len(train_loader)} - Loss: {loss.item():.4f}")
-
+            batch_time = timer() - batch_start
+            if i % 1000 == 0:
+                print(f"Batch {i} time: {batch_time:.3f}s")
 
         avg_loss = total_loss / len(train_loader)
-        epoch_time = timer() - epoch_start
-
-        print(f"[{descr}] Epoch {epoch} avg training loss: {avg_loss:.4f} | time: {epoch_time:.2f}s")
+        print(f"[{descr}] Epoch {epoch+1} training loss: {avg_loss:.4f}")
         loss_per_epoch.append(avg_loss)
 
+        epoch_time = timer() - epoch_start
+        print(f"Epoch {epoch+1} time: {epoch_time:.3f}s")
+
         # save after each epoch
-        print(f"Saving checkpoint epoch{epoch} ...")
-        checkpoint_dir = os.path.join(base_dir, f"epoch{epoch}")
+        save_start = timer()
+        print(f"Saving checkpoint epoch{epoch+1} ...")
+        checkpoint_dir = os.path.join(base_dir, f"epoch{epoch+1}")
         os.makedirs(checkpoint_dir, exist_ok=True)
         model.save_pretrained(checkpoint_dir)
         tokenizer.save_pretrained(checkpoint_dir)
-        torch.save(optimizer.state_dict(), os.path.join(checkpoint_dir, "optimizer.pt"))
-        print(f"Saved epoch{epoch} to {checkpoint_dir}")
+        print(f"Saved epoch{epoch+1} to {checkpoint_dir}")
+        print(f"Save time: {timer() - save_start:.3f}s")
 
-        # save loss 
-        with open(loss_file_csv, "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["epoch", "avg_loss"])
-            for i, l in enumerate(loss_per_epoch, start=1):
-                writer.writerow([i, l])
-    
 
-    # Save final merged model
+    # Save model
+    save_final = timer()
     final_dir = os.path.join(base_dir, "final_merged")
     os.makedirs(final_dir, exist_ok=True)
     print("Merging and saving final model...")
@@ -215,8 +225,17 @@ def train_model(tokenizer, model, descr, train_dataset, lora_config, batch_size=
     model.save_pretrained(final_dir)
     tokenizer.save_pretrained(final_dir)
     print(f"Saved final {descr} model and tokenizer to {final_dir}")
+    print(f"Save final model time: {timer() - save_final:.3f}s")
+
+    # Plot and save loss plot
+    plot_loss(loss_per_epoch, descr, base_dir)
 
     return f"{descr} training complete"
+
+# Function to extract the position number from ProteinChange
+def extract_position(protein_change):
+    match = re.search(r'\d+', protein_change)
+    return int(match.group()) if match else float('inf')
 
 
 def main():
@@ -232,26 +251,47 @@ def main():
 
     # Load missense data
     data_path = Path("./data")
-    ms_df = pd.read_parquet(data_path / "update2_all_ms_samples.parquet")
+    ms_df = pd.read_parquet(data_path / "update_all_ms_samples.parquet")
     t1 = timer()
     print(f"Time for loading missense data: {t1 - t0:.4f} seconds")
 
-    # Split data into 75% train, 5% validate, 20% test 
-    test_size = 0.20
+    # Split data into 60% train, 20% validate, 20% test 
+    test_size = 0.2
     ms_train_df, ms_test_df = train_test_split(ms_df, test_size=test_size, random_state=0)
-    valid_size = 0.0625
+    valid_size = 0.25  
     ms_train_df, ms_valid_df = train_test_split(ms_train_df, test_size=valid_size, random_state=0)
-    print("Train, Valid, Test split is:", len(ms_train_df), len(ms_valid_df), len(ms_test_df))
     t2 = timer()
     print(f"Time for splitting data: {t2 - t1:.4f} seconds")
 
-    
+    # Analyse training samples
+    # Count HugoSymbol frequencies and select top N
+    hugo_counts = ms_train_df['HugoSymbol'].value_counts()
+    top_genes = hugo_counts.head(10).index.tolist()
+    print(top_genes)
+
+    # Filter rows and print relevant columns
+    filtered = (
+        ms_train_df[ms_train_df['HugoSymbol'].isin(top_genes)]
+        [['HugoSymbol', 'ProteinChange', 'windowed_seq']]
+    )
+    print(f"Showing rows for top 10 most frequent HugoSymbols:\n{filtered}")
+    # Sort DataFrame by numeric position in ProteinChange
+    filtered = filtered.sort_values(
+        by="ProteinChange",
+        key=lambda col: col.map(extract_position)
+    ).reset_index(drop=True)
+    print(filtered.head(50))
+
+    t3 = timer()
+    print(f"Time for analysing training samples: {t3 - t2:.4f} seconds")
+
     # Load original ESM-2 model
     model_path = f"/g/data/gi52/jaime/esm2_{model_params_millions}M_model"
     tokenizer = EsmTokenizer.from_pretrained(model_path)
     model = EsmForMaskedLM.from_pretrained(model_path)
-
     t4 = timer()
+    print(f"Time for loading esm model: {t4 - t3:.4f} seconds")
+
     ms_tokenized_df = tokenize_and_mask_seqs(ms_train_df, tokenizer, window_size)
     ms_train_dataset = TorchDataset(ms_tokenized_df)
     t5 = timer()
@@ -268,14 +308,16 @@ def main():
         task_type=TaskType.TOKEN_CLS,  # Best fit for masked token modelling
     )
 
-
+    print('\nTesting pretrained model')
+    #testing_pretrained_model(lora_config, model, ms_train_dataset, batch_size)
     t6 = timer()
-    print('\nStarting training!')
-    train_model(tokenizer, model, descr, ms_train_dataset, lora_config, batch_size)
+    print(f"Time for testing pretrained model: {t6 - t5:.4f} seconds")
 
+    print('\n\nStarting training!')
+    train_model(tokenizer, model, descr, ms_train_dataset, lora_config, batch_size)
     t7 = timer()
     print(f"Total Time for training model: {t7 - t6:.4f} seconds")
-    # Plot and save loss plot
+
 
 
 if __name__ == '__main__':

@@ -72,7 +72,6 @@ def tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022, mlm_probab
     # Mask the mutation site position: 
     for i, (prot_change, start_index) in enumerate(zip(batch['ProteinChange'], batch['start_index'])):
 
-        print(f'sample is {batch}')
         # Extract mutation position, e.g. p.A27K → 27
         m = re.match(r"p\.\D+(\d+)", prot_change)
         if m:
@@ -82,9 +81,6 @@ def tokenize_and_mask_seqs(batch, tokenizer, window_size: int = 1022, mlm_probab
             window_pos = mut_pos - start_index  
 
             token_index = window_pos 
-
-            print(f'Protein change is {prot_change}, and the mutation position is {mut_pos}, token is at {token_index}')
-            print(f'start index: {batch['start_index']}')
 
             if 0 <= token_index < input_ids.shape[1]:
                 # Keep only mutation site for loss
@@ -194,7 +190,7 @@ def train_model(tokenizer, model, descr, train_dataset, lora_config, batch_size=
         model.train()
         total_loss = 0
         for i, batch in enumerate(train_loader):
-            batch_start = timer()
+            #batch_start = timer()
             batch = {k: v.to(device) for k, v in batch.items()}
             outputs = model(**batch)
             loss = outputs.loss
@@ -202,9 +198,9 @@ def train_model(tokenizer, model, descr, train_dataset, lora_config, batch_size=
             optimizer.step()
             optimizer.zero_grad()
             total_loss += loss.item()
-            batch_time = timer() - batch_start
-            if i % 1000 == 0:
-                print(f"Batch {i} time: {batch_time:.3f}s")
+            #batch_time = timer() - batch_start
+            #if i % 1000 == 0:
+            #    print(f"Batch {i} time: {batch_time:.3f}s")
 
         avg_loss = total_loss / len(train_loader)
         print(f"[{descr}] Epoch {epoch+1} training loss: {avg_loss:.4f}")

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 """
+Validating pretrained model learning 
+
 Progress tracking, plus model, tokeniser and optimiser saving 
 
 Split data into 75% train, 5% validate, 20% test 
@@ -11,6 +13,7 @@ Using updated DepMap data, with 550281 total missense sequences
 Train test set and tokenize inputs
 
 """
+import math
 import os
 import tempfile
 import pandas as pd
@@ -35,6 +38,7 @@ import random
 from peft import get_peft_model, LoraConfig, TaskType, PeftModel
 from torch.optim import AdamW
 from torch.utils.data import DataLoader, Dataset, Subset
+from torch.nn.utils import clip_grad_norm_
 from tqdm import tqdm
 import torch.nn.functional as F
 import csv
@@ -137,90 +141,98 @@ def plot_loss(loss_values, descr, base_dir):
     plt.savefig(f"{base_dir}/loss_plot.png", dpi=300)
     plt.close()
 
-def train_model(tokenizer, model, descr, train_dataset, lora_config, batch_size=6, epochs=3, lr=5e-5):
+def train_model_test(model, train_dataset, test_dataset, lora_config, batch_size=6, lr=5e-5):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
     model.to(device)
     optimizer = AdamW(model.parameters(), lr=lr)
 
-    # set up files to save progress to  
-    base_dir = f"/g/data/gi52/jaime/trained/esm2_650M_model/{descr}/run6"
-    os.makedirs(base_dir, exist_ok=True)
+    epochs = 1                              # set as needed
+    max_grad_norm = 1.0                     # optional grad clipping
 
-    progress_file = os.path.join(base_dir, "progress.pt")
-    loss_file_csv = os.path.join(base_dir, "loss_per_epoch.csv")
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
+        num_workers=1, pin_memory=True)
 
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False,
+        num_workers=1, pin_memory=True)
+    
+    best_eval = float("inf")
+    no_improve = 0
+    stop_training = False
+    min_delta = 1e-4
+    patience_eval = 3
 
-    # Shuffle dataset once
-    indices = np.random.permutation(len(train_dataset))
-    shuffled_dataset = Subset(train_dataset, indices)
-    train_loader = DataLoader(
-        shuffled_dataset, batch_size=batch_size, shuffle=False,
-        num_workers=1, pin_memory=True
-    )
-
-    print(f"Batch size: {batch_size}, Batches per epoch: {len(train_loader)}")
-
-    loss_per_epoch = []
-    for epoch in range(epochs):
-        print(f"\nStarting training for epoch {epoch}...")
-        epoch_start = timer()
+    for epoch in range(1, epochs + 1):
         model.train()
-        total_loss = 0
+        total_train_loss = 0.0
+        steps_per_epoch = len(train_loader)
+        eval_every = max(1, math.ceil(0.05 * steps_per_epoch))   # <-- evaluate every 5%
+        print(f"\n=== Epoch {epoch} ===")
+        print(f"Steps per epoch: {steps_per_epoch} | Eval every: {eval_every} steps (~5%)")
 
-        for batch_idx, batch in enumerate(train_loader):
+        for step, batch in enumerate(train_loader, start=1):
+            # ---------------------------
+            # Training step
+            # ---------------------------
             batch = {k: v.to(device, non_blocking=True) for k, v in batch.items()}
             optimizer.zero_grad(set_to_none=True)
             outputs = model(**batch)
             loss = outputs.loss
             loss.backward()
+            if max_grad_norm is not None:
+                clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
-            total_loss += loss.item()
+        
+            total_train_loss += float(loss)
 
-            # save progress every batch
-            torch.save({"epoch": epoch, "batch_idx": batch_idx}, progress_file)
-            if (batch_idx) % 100 == 0:
-                print(f"Epoch {epoch}, Batch {batch_idx}/{len(train_loader)} - Loss: {loss.item():.4f}")
+            # ---------------------------
+            # Periodic evaluation @ 5%
+            # ---------------------------
+            if (step % eval_every) == 0 or step == steps_per_epoch:
+                avg_train_so_far = total_train_loss / step
+                print(f"[Train] step {step}/{steps_per_epoch} | avg_loss_so_far={avg_train_so_far:.4f}")
 
+                # Switch to eval and run a full pass on test_loader
+                model.eval()
+                eval_loss = 0.0
+                n_eval_batches = 0
 
-        avg_loss = total_loss / len(train_loader)
-        epoch_time = timer() - epoch_start
+                with torch.inference_mode():
+                    for ebatch in test_loader:
+                        ebatch = {k: v.to(device, non_blocking=True) for k, v in ebatch.items()}
+                        eout = model(**ebatch)
+                        eloss = eout.loss
+                        eval_loss += float(eloss)
+                        n_eval_batches += 1
+                avg_eval = eval_loss / max(1, n_eval_batches)
+                print(f"[Eval ] after step {step}: avg_eval_loss={avg_eval:.4f}")
 
-        print(f"[{descr}] Epoch {epoch} avg training loss: {avg_loss:.4f} | time: {epoch_time:.2f}s")
-        loss_per_epoch.append(avg_loss)
+                # ---- early stopping check (within epoch) ----
+                if avg_eval < (best_eval - min_delta):
+                    best_eval = avg_eval
+                    no_improve = 0
+                else:
+                    no_improve += 1
+                    print(f"[EarlyStop] no improvement #{no_improve}/{patience_eval} "
+                        f"(best={best_eval:.4f}, min_delta={min_delta})")
+                    if no_improve >= patience_eval:
+                        print("[EarlyStop] Stopping early due to plateau on eval loss.")
+                        stop_training = True
+                        break  # exit training loop for this epoch
 
-        # save after each epoch
-        print(f"Saving checkpoint epoch{epoch} ...")
-        checkpoint_dir = os.path.join(base_dir, f"epoch{epoch}")
-        os.makedirs(checkpoint_dir, exist_ok=True)
-        model.save_pretrained(checkpoint_dir)
-        tokenizer.save_pretrained(checkpoint_dir)
-        torch.save(optimizer.state_dict(), os.path.join(checkpoint_dir, "optimizer.pt"))
-        print(f"Saved epoch{epoch} to {checkpoint_dir}")
+                # Go back to training mode
+                model.train()
 
-        # save loss 
-        with open(loss_file_csv, "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["epoch", "avg_loss"])
-            for i, l in enumerate(loss_per_epoch, start=1):
-                writer.writerow([i, l])
-    
+        if stop_training:
+            break  # exit outer epoch loop if triggered
 
-    # Save final merged model
-    final_dir = os.path.join(base_dir, "final_merged")
-    os.makedirs(final_dir, exist_ok=True)
-    print("Merging and saving final model...")
-    model = model.merge_and_unload()
-    model.save_pretrained(final_dir)
-    tokenizer.save_pretrained(final_dir)
-    print(f"Saved final {descr} model and tokenizer to {final_dir}")
+        epoch_avg_train = total_train_loss / steps_per_epoch
+        print(f"=== End Epoch {epoch} | avg_train_loss={epoch_avg_train:.4f} ===")
 
-    return f"{descr} training complete"
 
 
 def main():
-    t0 = timer()
     # Set reproducibility
     set_seeds(0)
 
@@ -228,35 +240,28 @@ def main():
     batch_size = 8
     window_size = 1022
     model_params_millions = 650
-    descr = "missense"
 
     # Load missense data
     data_path = Path("./data")
     ms_df = pd.read_parquet(data_path / "update2_all_ms_samples.parquet")
-    t1 = timer()
-    print(f"Time for loading missense data: {t1 - t0:.4f} seconds")
 
     # Split data into 75% train, 5% validate, 20% test 
     test_size = 0.20
     ms_train_df, ms_test_df = train_test_split(ms_df, test_size=test_size, random_state=0)
     valid_size = 0.0625
     ms_train_df, ms_valid_df = train_test_split(ms_train_df, test_size=valid_size, random_state=0)
-    print("Train, Valid, Test split is:", len(ms_train_df), len(ms_valid_df), len(ms_test_df))
-    t2 = timer()
-    print(f"Time for splitting data: {t2 - t1:.4f} seconds")
-
+    print("Missense - Train, Valid, Test split is:", len(ms_train_df), len(ms_valid_df), len(ms_test_df))
     
     # Load original ESM-2 model
     model_path = f"/g/data/gi52/jaime/esm2_{model_params_millions}M_model"
     tokenizer = EsmTokenizer.from_pretrained(model_path)
     model = EsmForMaskedLM.from_pretrained(model_path)
 
-    t4 = timer()
-    ms_tokenized_df = tokenize_and_mask_seqs(ms_train_df, tokenizer, window_size)
-    ms_train_dataset = TorchDataset(ms_tokenized_df)
-    t5 = timer()
-    print(f"Time for tokenising and masking: {t5 - t4:.4f} seconds")
-    print("Number of ms training samples:", len(ms_train_dataset))
+    train_tokenized_df = tokenize_and_mask_seqs(ms_train_df, tokenizer, window_size)
+    ms_train_dataset = TorchDataset(train_tokenized_df)
+
+    valid_tokenized_df = tokenize_and_mask_seqs(ms_valid_df, tokenizer, window_size)
+    ms_valid_dataset = TorchDataset(valid_tokenized_df)
 
     # Set up LoRA
     lora_config = LoraConfig(
@@ -268,14 +273,8 @@ def main():
         task_type=TaskType.TOKEN_CLS,  # Best fit for masked token modelling
     )
 
-
-    t6 = timer()
-    print('\nStarting training!')
-    train_model(tokenizer, model, descr, ms_train_dataset, lora_config, batch_size)
-
-    t7 = timer()
-    print(f"Total Time for training model: {t7 - t6:.4f} seconds")
-    # Plot and save loss plot
+    print('\nStarting training and validating!')
+    train_model_test(model, ms_train_dataset, ms_valid_dataset, lora_config, batch_size)
 
 
 if __name__ == '__main__':
