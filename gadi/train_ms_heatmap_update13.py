@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Iteration 7: update LoRA targets to include query, KEY and value projection layers
+Iteration 7: update LoRA targets to include query, KEY and value layers
 
 Train on all missense mutations including replicates (mask mutation position)
 Batches of 8 have 7 MT and 1 WT sequence to reduce catastrophic forgetting
@@ -658,7 +658,7 @@ def main():
     lora_config = LoraConfig(
         r=4,
         lora_alpha=8,
-        target_modules=['q_proj', 'k_proj', 'v_proj'],  # Updated to include query, key, and value projection layers
+        target_modules=["query", "key", "value"],  # Updated to include query, key, and value projection layers
         lora_dropout=0.1,
         bias="none",
         task_type=TaskType.TOKEN_CLS, 
