@@ -69,8 +69,13 @@ def analyse(df: object):
     print(f"\nNumber of unique proteins by Hugo Symbol: {len(df['HugoSymbol'].unique())}")
     hugo_count = df['HugoSymbol'].value_counts()
     print(hugo_count)
+<<<<<<< HEAD
     top = 10
     print(f"\nTop {top}: {hugo_count.head(top)}\n")
+=======
+    top = 100
+    #print(f"\nTop {top}: {hugo_count.head(top)}\n")
+>>>>>>> 271fb01b4ab02989319fa4fe194eb54244560d99
 
 def filter_empty(df: object):
     """ Filter out sequences that no protein sequence  
@@ -141,7 +146,11 @@ def filter_frameshift(df: pd.DataFrame):
 def main():
 
     # Load data 
+<<<<<<< HEAD
     csv_path = './data/OmicsSomaticMutations_with_protein_seqs.csv'
+=======
+    csv_path = '/Users/jaimetaitz/Downloads/OmicsSomaticMutations_with_protein_seqs.csv'
+>>>>>>> 271fb01b4ab02989319fa4fe194eb54244560d99
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"File not found: {csv_path}")
     df = pd.read_csv(csv_path, low_memory=False)
@@ -162,11 +171,19 @@ def main():
     ms_df = filter_missense(df) # 57763 entries
     fs_df = filter_frameshift(df) # 9246 entries
 
+<<<<<<< HEAD
     # analyse ms and fs data
     print('\nMs data analysis:')
     analyse(ms_df)
     print('\nFs data analysis:')
     analyse(fs_df)
+=======
+    # Split data into train and test set (holdout test set)
+
+    test_size = 0.2
+    ms_train_df, ms_test_df = train_test_split(ms_df, test_size=test_size, random_state=0)
+    fs_train_df, fs_test_df = train_test_split(fs_df, test_size=test_size, random_state=0)
+>>>>>>> 271fb01b4ab02989319fa4fe194eb54244560d99
 
     # Save to file
         # Set data_path to a folder named 'data' in the current working directory
@@ -177,8 +194,17 @@ def main():
     
     df.to_parquet(data_path / "processed_data.parquet")
 
+<<<<<<< HEAD
     ms_df.to_parquet(data_path / "all_ms_samples.parquet")
     fs_df.to_parquet(data_path / "all_fs_samples.parquet")
+=======
+    ms_train_df.to_parquet(data_path / "ms_train_split.parquet")
+    ms_test_df.to_parquet(data_path / "ms_test_split.parquet")
+
+    fs_train_df.to_parquet(data_path / "fs_train_split.parquet")
+    fs_test_df.to_parquet(data_path / "fs_test_split.parquet")
+
+>>>>>>> 271fb01b4ab02989319fa4fe194eb54244560d99
 
 if __name__ == '__main__':
     main()

@@ -1,0 +1,2 @@
+[console_scripts]
+pfasta = protfasta.scripts.pfasta:main
