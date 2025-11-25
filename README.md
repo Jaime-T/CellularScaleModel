@@ -1,6 +1,13 @@
 # CellularScaleModel
 Honours project 
 
+Problem:
+ESM-2 and similar models are trained on natural (wild-type) sequences, but not curated human disease-associated variants. This limits their ability to distinguish clinically relevant human variants from those that are evolutionarily rare but benign, and to distinguish between variants that are evolutionarily deleterious and those deleterious to cellular function. 
+
+Solution:
+This project proposes fine-tuning ESM-2 using a comprehensive dataset of cancer-related human protein sequences from DepMap database (DepMap Public 25Q3 release). This will allow the model to learn patterns from known human variations, improving its ability to differentiate between benign and pathogenic variants and potentially discover new cell vulnerabilities. The new model, termed Cell Scale Modelling (CSM), will be designed to identify clinically relevant mutations with greater precision. By integrating predictions from ESM-2 and CSM, we aim to establish a dual-model approach that significantly enhances the sensitivity and specificity of variant classification.
+
+
 Instructions for environment creation/package mngement:
     mamba:
         ~ mamba env create -f environment.yaml
@@ -14,7 +21,7 @@ To run the program, run:
     ~ python3 file_name.py
 
 
-Preprocessing data:
+Preprocessing data (in **training_data_processing** directory):
 
 1) add_utr3.py - this file adds the utr3 sequence to the coding sequence for each gene 
 2) mutate_data.py - this file applies the mutation the coding sequence, 
@@ -23,7 +30,7 @@ Preprocessing data:
 3) process_data.py - selects and categorises sequences into missense or framehsift mutations.
     It applies a sliding window if sequences exceed 1022 sequence length
 
-Training Iterations:
+Training Iterations (in **gadi** directory):
 
 1) train_iteration1_run4.py - Iteration 1 (random token masking)
 2) train_iteration2_run8.py - Iteration 2 (targeted masking at mutation sites)
@@ -35,7 +42,8 @@ summarised as below:
 
 <img width="651" height="405" alt="Screenshot 2025-11-25 at 1 09 38 pm" src="https://github.com/user-attachments/assets/534b5c96-d4e9-4d7e-b114-4e1a2db77d9b" />
 
-Visualisations:
+
+Visualisations (in **visualisations**  directory):
 
 1) heatmap_scaled_test.py - creates scaled heatmaps for ESM2 pretrained model and CSM finetuned model. Also, creates scaled heatmaps with special colour scheme for difference heatmap (CSM - ESM2)
 2) delta_csm_esm_score_distro.py - creates Cartesian scatterplot of CSM vs ESM2 scores, and creates density distribution using ClinVar pathogenicity labels
