@@ -1,11 +1,12 @@
 # CellularScaleModel
 Honours project 
 
-Problem:
+**Problem:**
 ESM-2 and similar models are trained on natural (wild-type) sequences, but not curated human disease-associated variants. This limits their ability to distinguish clinically relevant human variants from those that are evolutionarily rare but benign, and to distinguish between variants that are evolutionarily deleterious and those deleterious to cellular function. 
 
-Solution:
+**Solution:**
 This project proposes fine-tuning ESM-2 using a comprehensive dataset of cancer-related human protein sequences from DepMap database (DepMap Public 25Q3 release). This will allow the model to learn patterns from known human variations, improving its ability to differentiate between benign and pathogenic variants and potentially discover new cell vulnerabilities. The new model, termed Cell Scale Modelling (CSM), will be designed to identify clinically relevant mutations with greater precision. By integrating predictions from ESM-2 and CSM, we aim to establish a dual-model approach that significantly enhances the sensitivity and specificity of variant classification.
+
 
 
 Instructions for environment creation/package mngement:
