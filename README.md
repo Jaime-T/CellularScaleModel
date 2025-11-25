@@ -1,4 +1,4 @@
-<img width="590" height="395" alt="image" src="https://github.com/user-attachments/assets/5f858864-f321-4c68-8fa4-93be4b0a8434" /># CellularScaleModel
+# CellularScaleModel
 Honours project 
 
 Instructions for environment creation/package mngement:
