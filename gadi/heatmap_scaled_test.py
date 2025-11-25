@@ -83,37 +83,6 @@ def generate_heatmap(protein_sequence, model, tokenizer, start_pos=1, end_pos=No
 
     return heatmap, amino_acids
 
-def plot_heatmap(data, gene, title, sequence, base_dir, amino_acids):
-
-    plt.figure(figsize=(20, 5))
-    plt.imshow(data, cmap="bwr_r" if "Difference" in title else "viridis_r", aspect="auto")
-    plt.yticks(range(20), amino_acids)
-    plt.ylabel("Amino Acid Mutations")
-
-    seq_len = len(sequence)
-    xticks_positions = list(range(0, seq_len, 50)) # mark every 50th position
-    # ensure last position is shown too
-    if seq_len - 1 not in xticks_positions:
-        xticks_positions.append(seq_len - 1)
-    # set ticks and labels
-    plt.xticks(xticks_positions, [str(pos) for pos in xticks_positions])
-    plt.xlabel("Position in Protein Sequence")
-    plt.title(title + ' ' + '650M')
-    plt.colorbar(label="Log Likelihood Ratio (LLR)")
-    plt.tight_layout()
-    
-    # Define the path
-    save_path = os.path.join(base_dir, f"{gene}/{title.replace(' ', '_')}.png")
-    folder = os.path.dirname(save_path)
-
-    # Create the directory if it doesn't exist
-    print(f"Saving heatmap to {save_path}")
-    os.makedirs(folder, exist_ok=True)
-
-    # Save the figure
-    plt.savefig(save_path, dpi=300)
-    plt.close()
-
 def custom_plot_heatmap(data, gene, title, sequence, base_dir, amino_acids):
 
     # Define the custom colormap
@@ -287,7 +256,7 @@ def main():
             scaled_plot_heatmap(base_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Original ESM2 Model (LLRs)", sequence, base_dir, amino_acids)
             scaled_plot_heatmap(ms_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Fine-tuned Missense Model (LLRs)", sequence, base_dir, amino_acids)
             
-            # Use custom plot for colour 
+            # Use custom plot for colour - diff heatmap
             custom_plot_heatmap(ms_diff_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Difference (Fine-tuned Missense - Original)", sequence, base_dir, amino_acids)
         
         print(f"[Batch {batch_num}] Heatmaps generated and saved to {base_dir}")
