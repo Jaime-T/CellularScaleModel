@@ -33,6 +33,19 @@ def convert_protein_notation(s):
     if pd.isna(s):
         return s
     out = s
+
+    # handle case where p.Val25= is p.Val25Val
+    m = re.match(r"^p\.([A-Z][a-z]{2})(\d+)=$", out)
+    if m:
+        three_letter = m.group(1)
+        pos = m.group(2)
+        if three_letter in aa_map:
+            aa1 = aa_map[three_letter]
+            # Build one-letter “no change” form: p.V25V
+            out = f"p.{aa1}{pos}{aa1}"
+
+        print(f"Converted no-change notation {s} to {out}", flush=True)
+
     for k, v in aa_map.items():
         out = re.sub(k, v, out)
     return out
@@ -108,7 +121,7 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     # Load data
-    cols = ["Name", "HGNC_ID", "GeneSymbol", "ClinicalSignificance"]
+    cols = ["Name", "GeneSymbol", "HGNC_ID", "ClinicalSignificance"]
     df = pd.read_csv(input_csv, usecols=cols, low_memory=False)
 
     print(f"Loaded {len(df)} mutations", flush=True)
@@ -142,12 +155,12 @@ def main():
     protein_seqs = pd.read_csv(protein_seq_csv)
 
     # write heading to new file
-    final_path = os.path.join(output_dir, "ten_genes_clinvar_csm_scores.csv")
-    #with open(final_path, "w") as f:
-    #    f.write("Name,HGNC_ID,GeneSymbol,ClinicalSignificance,ProteinChange,esm_score,csm_score\n")
+    final_path = os.path.join(output_dir, "rpl15_esm_csm_scores_fixed.csv")
+    with open(final_path, "w") as f:
+        f.write("Name,GeneSymbol,HGNC_ID,ClinicalSignificance,ProteinChange,esm_score,csm_score\n")
 
     # process each gene 
-    for i, gene in enumerate(ten_genes[5:]):
+    for i, gene in enumerate(ten_genes):
         print(f"Processing gene {i+1}/{len(ten_genes)}: {gene}", flush=True)
 
         seq_row = protein_seqs.loc[protein_seqs["symbol"] == gene, "sequence"]
