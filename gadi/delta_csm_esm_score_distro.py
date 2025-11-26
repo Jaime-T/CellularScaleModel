@@ -16,7 +16,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from plotnine import ( ggplot, aes, geom_density, theme_minimal, scale_color_manual, 
-    scale_fill_manual)
+    scale_fill_manual, scale_y_continuous)
 import os
 from sklearn.preprocessing import StandardScaler
 import numpy as np
@@ -164,6 +164,7 @@ def scaled_delta_extremity_mut_distro_plot(csm_data, save_dir, batch_num, gene):
         + scale_color_manual(values=color_map)
         + scale_fill_manual(values=color_map)
         + theme_minimal()
+       # + scale_y_continuous(limits=(0, 5))
     )
     save_path = os.path.join(save_dir, f"scaled_delta_epoch0_batch{batch_num}_{gene}.png")
     p.save(save_path, width=8, height=5, dpi=300)
@@ -297,7 +298,8 @@ def main():
     #tp53_clinvar = pd.read_csv("/g/data/gi52/jaime/clinvar/run11_ms/tp53/epoch0_batch10000_tp53_clinvar_csm_scores.csv")
     #all_genes_clinvar_intermediate = pd.read_csv("/g/data/gi52/jaime/clinvar/run11_ms/batched7_all_genes/all_clinvar_csm_scores.csv")
     #data = pd.read_csv("/g/data/gi52/jaime/clinvar/run11_ms/five_panlethal_genes/five_panlethal_genes_clinvar_csm_scores.csv", na_values=["NaN", "nan", "None", ""])
-    data = pd.read_csv("/g/data/gi52/jaime/clinvar/run11_ms/batched_ten_genes/ten_genes_clinvar_csm_scores.csv")
+    #data = pd.read_csv("/g/data/gi52/jaime/clinvar/run11_ms/batched_ten_genes/ten_genes_clinvar_csm_scores.csv")
+    data = pd.read_csv("/g/data/gi52/jaime/clinvar/run11_ms/rpl15/rpl15_esm_csm_scores_fixed.csv")
     
     gene = "rpl15"
 
@@ -318,16 +320,17 @@ def main():
         columns={"ClinicalSignificance": "clinvar_label"}
     )
 
-    # filter out only Pathogenic, Benign, Uncertain Significance, and Conflicting classifications of pathogenicity
+    # filter out only likely Pathogenic, Benign, Uncertain Significance, and Conflicting classifications of pathogenicity
     filtered_data = df[df['clinvar_label'].isin([
         'Pathogenic', 'Benign', 'Uncertain significance','Conflicting classifications of pathogenicity',
         'Pathogenic/Likely pathogenic', 'Likely pathogenic', 'Benign/Likely benign', 'Likely benign'])]
     
     cartesian_plot(filtered_data, save_dir, gene)
     
+    # filter out only Pathogenic, Benign, Uncertain Significance, and Conflicting classifications of pathogenicity
     filtered_data = df[df['clinvar_label'].isin([
         'Pathogenic', 'Benign', 'Uncertain significance','Conflicting classifications of pathogenicity'])]
-    delta_extremity_mut_distro_plot(filtered_data, save_dir, 10000, gene)
+    #delta_extremity_mut_distro_plot(filtered_data, save_dir, 10000, gene)
     scaled_delta_extremity_mut_distro_plot(filtered_data, save_dir, 10000, gene)
 
 
