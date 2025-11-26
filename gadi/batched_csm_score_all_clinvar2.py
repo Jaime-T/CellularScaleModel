@@ -117,7 +117,7 @@ def main():
     protein_seq_csv = "/g/data/gi52/jaime/data/gene_sequences_with_ids.csv"
     base_model_path = "/g/data/gi52/jaime/esm2_650M_model"
     adapter_path = "/g/data/gi52/jaime/trained/esm2_650M_model/missense/run11/epoch0_batch10000"
-    output_dir = "/g/data/gi52/jaime/clinvar/run11_ms/batched_ten_genes"
+    output_dir = "/g/data/gi52/jaime/clinvar/run11_ms/batched_ten_genes_update"
     os.makedirs(output_dir, exist_ok=True)
 
     # Load data
@@ -145,7 +145,7 @@ def main():
         p.requires_grad = False
     frozen_base_model = frozen_base_model.to(device)
 
-    ten_genes = ["BRAF", "MYC", "TP53", "RPL15", "BRCA1", "BRCA2", "EGFR", "PIK3CA", "PTEN", "APC"]
+    ten_genes = ["BRAF", "MYC", "TP53", "BRCA1", "RPL15", "BRCA2", "EGFR", "PIK3CA", "PTEN", "APC"]
     
     # get only these genes
     results = []
@@ -155,7 +155,7 @@ def main():
     protein_seqs = pd.read_csv(protein_seq_csv)
 
     # write heading to new file
-    final_path = os.path.join(output_dir, "rpl15_esm_csm_scores_fixed.csv")
+    final_path = os.path.join(output_dir, "ten_genes_fixed.csv")
     with open(final_path, "w") as f:
         f.write("Name,GeneSymbol,HGNC_ID,ClinicalSignificance,ProteinChange,esm_score,csm_score\n")
 
