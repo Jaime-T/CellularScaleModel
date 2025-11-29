@@ -353,7 +353,7 @@ def combined_batch_generator(
             wt_rep = wt_tensor
             batch[key] = torch.cat([mut_rep, wt_rep], dim=0).to(device, non_blocking=True)
 
-        # ✅ Optional Debugging
+        # Optional Debugging
         if debug and debug_batches_printed < max_debug_batches:
             print("\n================ DEBUG BATCH =================")
             print(f"Index used: {idx}")
