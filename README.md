@@ -65,5 +65,41 @@ summarised as below:
 1. **Clone the repo**
 
 ```bash
-git clone https://github.com/<your-org>/<your-repo>.git
+git clone https://github.com/Jaime-T/CellularScaleModel.git
 cd <your-repo>
+```
+
+2. **Environment setup**
+
+This project was developed using a Conda/Mamba environment defined in `environment.yml`.  
+A `requirements.txt` file is also provided for users who prefer `pip` and virtual environments.
+
+### Option 1 – Conda/Mamba (recommended)
+
+Create and activate the `csm` environment:
+
+```bash
+# Create environment
+mamba env create -f environment.yml
+
+# or, if you use conda:
+# conda env create -f environment.yml
+
+# Activate environment
+mamba activate csm
+# or: conda activate csm
+```
+
+### Option 2 - pip 
+```bash
+# Create virtual environment (only once)
+python -m venv csm_venv
+
+# Activate it (Linux/macOS)
+source csm_venv/bin/activate
+
+# On Windows (PowerShell):
+# .\csm_venv\Scripts\Activate.ps1
+
+# Install Python dependencies
+pip install -r requirements.txt
