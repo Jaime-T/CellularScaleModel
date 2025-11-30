@@ -60,6 +60,7 @@ summarised as below:
 2) delta_csm_esm_score_distro.py - creates Cartesian scatterplot of CSM vs ESM2 scores, and creates density distribution using ClinVar pathogenicity labels
 3) heatmap.py - creates heatmaps with training data as dots 
 
+
 ### Quick Start
 
 1. **Clone the repo**
@@ -90,7 +91,7 @@ mamba activate csm
 # or: conda activate csm
 ```
 
-### Option 2 - pip 
+### Option 2 - pip + virtualenv
 ```bash
 # Create virtual environment (only once)
 python -m venv csm_venv
