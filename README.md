@@ -56,9 +56,12 @@ summarised as below:
 
 ## Visualisations
 
-1) heatmap_scaled_test.py - creates scaled heatmaps for ESM2 pretrained model and CSM finetuned model. Also, creates scaled heatmaps with special colour scheme for difference heatmap (CSM - ESM2)
-2) delta_csm_esm_score_distro.py - creates Cartesian scatterplot of CSM vs ESM2 scores, and creates density distribution using ClinVar pathogenicity labels
-3) heatmap.py - creates heatmaps with training data as dots 
+1) calc_csm_esm_score.py - calculate CSM and ESM2 scores 
+2) heatmap_scaled.py - creates scaled heatmaps for ESM2 pretrained model and CSM finetuned model. Also, creates scaled heatmaps with special colour scheme for difference heatmap (CSM - ESM2)
+3) delta_distribution.py - creates density distribution using ClinVar pathogenicity labels
+4) scatterplot_clinvar_labelled.py - creates Cartesian scatterplot of CSM vs ESM2 scores using ClinVar pathogenicity labelled mutations
+5) scatterplot_unlabelled.py - creates Cartesian scatterplot of CSM vs ESM2 scores of all possible amino acid substitutions, not just those in ClinVar database
+6) delta_distro_plus_labelled_scatterplot.py - creates Cartesian scatterplot of CSM vs ESM2 scores, and creates density distribution using ClinVar pathogenicity labels
 
 
 ### Quick Start
