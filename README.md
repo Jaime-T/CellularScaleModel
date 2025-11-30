@@ -60,3 +60,10 @@ summarised as below:
 2) delta_csm_esm_score_distro.py - creates Cartesian scatterplot of CSM vs ESM2 scores, and creates density distribution using ClinVar pathogenicity labels
 3) heatmap.py - creates heatmaps with training data as dots 
 
+### Quick Start
+
+1. **Clone the repo**
+
+```bash
+git clone https://github.com/<your-org>/<your-repo>.git
+cd <your-repo>
