@@ -1,31 +1,37 @@
-# CellularScaleModel
-Honours project 
+# About this project
+Cellular Scale Model (CSM) is a prototype protein large language–model (PLLM) pipeline
+for enhancing variant interpretation in cancer.
 
-**Problem:**
-In cancers, including childhood cancer, genetic alterations drive tumour development and progression. Understanding which protein variants are driver alterations, rather than passenger alterations, is crucial for informing precision medicine and treatment strategies. Except for a few recurrent mutations annotated in databases such as ClinVar (Clinical Variant), the functional impact of most alterations remains unknown. Even then, about 50% of variants in ClinVar are classified as having uncertain significance, highlighting the challenges in variant interpretation and the urgent need for further research to clarify their clinical impact.
-
-**What is already known:**
-Generative learning models, such as large language models of proteins, can absorb large amounts of protein data and learn evolutionary relationships and constraints among amino acids. These insights enable predictions about whether mutations are favourable from an evolutionary perspective. Evolutionary Scale Modelling 2 (ESM-2) excels in predicting mutation effects, with high correlation to experimental deep mutational scanning data.  However, ESM-2 and similar models are trained on natural (wild-type) sequences, but not curated human disease-associated variants. This limits their ability to distinguish clinically relevant human variants from those that are evolutionarily rare but benign, and to distinguish between variants that are evolutionarily deleterious and those deleterious to cellular function. 
-
-**Solution:**
-This project proposes fine-tuning ESM-2 using a comprehensive dataset of cancer-related human protein sequences from DepMap database (DepMap Public 25Q3 release). This will allow the model to learn patterns from known human variations, improving its ability to differentiate between benign and pathogenic variants and potentially discover new cell vulnerabilities. The new model, termed Cell Scale Modelling (CSM), will be designed to identify clinically relevant mutations with greater precision. By integrating predictions from ESM-2 and CSM, we aim to establish a dual-model approach that significantly enhances the sensitivity and specificity of variant classification.
+It builds on the pretrained ESM-2 model and fine-tunes it on human, cancer-relevant
+variants so that researchers can:</br>
+- compare evolutionary vs cellular views of a mutation (ESM-2 vs CSM),
+- visualise full mutational landscapes with heatmaps, and
+- explore how CSM behaves on ClinVar-labelled variants (benign, pathogenic, VUS).
 
 
+This repository accompanies the Honours thesis:</br>
+“Enhancing Variant Interpretation in Cancer Using Protein Large Language Models” – Jaime Taitz (UNSW, 2025)
 
-Instructions for environment creation/package mngement:
-    mamba:
-        ~ mamba env create -f environment.yaml
-        ~ mamba activate csm
+### Key Features
 
-    pip:
-        ~ source csm_venv/bin/activate
-        ~ pip install -r requirements.txt
+- ESM-2 + LoRA: Parameter-efficient fine-tuning of the 650M-parameter ESM-2 model.
 
-To run the program, run:
-    ~ python3 file_name.py
+- Cancer-aware scoring: Compute log-likelihood ratios (LLRs) and Δ-scores (CSM − ESM-2) for
+  mutations of interest.
+  
 
+- ClinVar integration: Simple utilities for aligning model scores with ClinVar clinical
+  significance labels.
+  
 
-Preprocessing data (in **training_data_processing** directory):
+- Visual diagnostics  
+  - Global variant-effect heatmaps  
+  - Delta-score kernel density plots  
+  - CSM vs ESM-2 scatterplots
+
+### Key Files
+
+## Preprocessing data
 
 1) add_utr3.py - this file adds the utr3 sequence to the coding sequence for each gene 
 2) mutate_data.py - this file applies the mutation the coding sequence, 
@@ -34,7 +40,7 @@ Preprocessing data (in **training_data_processing** directory):
 3) process_data.py - selects and categorises sequences into missense or framehsift mutations.
     It applies a sliding window if sequences exceed 1022 sequence length
 
-Training Iterations (in **gadi** directory):
+## Training Iterations (in **gadi** folder)
 
 1) train_iteration1_run4.py - Iteration 1 (random token masking)
 2) train_iteration2_run8.py - Iteration 2 (targeted masking at mutation sites)
@@ -44,10 +50,11 @@ Training Iterations (in **gadi** directory):
 
 summarised as below:
 
-<img width="651" height="405" alt="Screenshot 2025-11-25 at 1 09 38 pm" src="https://github.com/user-attachments/assets/534b5c96-d4e9-4d7e-b114-4e1a2db77d9b" />
+<p align="middle">
+    <img src="https://github.com/user-attachments/assets/534b5c96-d4e9-4d7e-b114-4e1a2db77d9b" width="651" height="405" alt="Training iteration feature table" />
+</p>
 
-
-Visualisations (in **visualisations**  directory):
+## Visualisations
 
 1) heatmap_scaled_test.py - creates scaled heatmaps for ESM2 pretrained model and CSM finetuned model. Also, creates scaled heatmaps with special colour scheme for difference heatmap (CSM - ESM2)
 2) delta_csm_esm_score_distro.py - creates Cartesian scatterplot of CSM vs ESM2 scores, and creates density distribution using ClinVar pathogenicity labels
