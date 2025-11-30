@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# scaling LLRs from -1 to 1. 
-# but for the difference heatmaps, making sure the colour value match is consistent e.g. white is always 0
-# Plot heatmaps of log likelihood ratios (LLRs) for all possible amino acid substitutions
-# across a given protein sequence using ESM-2 models (original and fine-tuned).
-# This script generates heatmaps for the original ESM-2 model and a missense fine-tuned model.
-# It also compares top-k amino acid predictions at a specific position in the sequence.
-# It focuses on RPL15 protein as an example for a negative control. 
+"""
+    Plot heatmaps of log likelihood ratios (LLRs) for all possible amino acid substitutions
+    across a given protein sequence using ESM-2 models (original and fine-tuned).
+    Scale LLRs to -1 to 1 for better visualisation.
+    Colour map for difference heatmap is custom diverging to highlight extreme values.
+"""
 
 import re 
 import os
@@ -165,29 +164,6 @@ def scaled_plot_heatmap(data, gene, title, sequence, base_dir, amino_acids):
     # Save the figure
     plt.savefig(save_path, dpi=300)
     plt.close()
-
-def topk_predictions(model, tokenizer, protein_seq, masked_pos, k=5):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-    model.eval()
-
-    tokens = list(protein_seq)
-    tokens[masked_pos - 1] = tokenizer.mask_token  # Replace 1-based index with mask
-    masked_seq = "".join(tokens)
-
-    inputs = tokenizer(masked_seq, return_tensors="pt").to(device)
-    
-    with torch.no_grad():
-        logits = model(**inputs).logits
-        mask_index = (inputs["input_ids"] == tokenizer.mask_token_id).nonzero(as_tuple=True)
-        prediction_logits = logits[mask_index]
-
-    probs = torch.softmax(prediction_logits, dim=-1)
-    topk = torch.topk(probs, k=k, dim=-1)
-    top_tokens = tokenizer.convert_ids_to_tokens(topk.indices[0].tolist())
-    top_probs = topk.values[0].tolist()
-
-    return list(zip(top_tokens, top_probs))
 
 def main():
 
