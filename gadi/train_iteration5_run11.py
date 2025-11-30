@@ -353,7 +353,7 @@ def combined_batch_generator(
             wt_rep = wt_tensor
             batch[key] = torch.cat([mut_rep, wt_rep], dim=0).to(device, non_blocking=True)
 
-        # ✅ Optional Debugging
+        # Optional Debugging
         if debug and debug_batches_printed < max_debug_batches:
             print("\n================ DEBUG BATCH =================")
             print(f"Index used: {idx}")
@@ -385,9 +385,7 @@ def combined_batch_generator(
                     print("No [MASK] token found in batch[\"input_ids\"]")
 
             debug_batches_printed += 1
-
         yield batch
-
 
 def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data, wt_train_data,
                 mut_valid_data, wt_valid_data,
@@ -529,7 +527,6 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
                     writer.writerow([epoch, batch_num, batch_loss, mut_val_loss, wt_val_loss])
                 print(f"Saved temporary loss values to {temp_loss_file}\n")
 
-
             # save every 1000 batches
             if (batch_idx + 1) % 1000 == 0:  
                 batch_num = batch_idx + 1 
@@ -540,9 +537,6 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
                 torch.save(optimizer.state_dict(), os.path.join(batch_dir, "optimizer.pt"))
                 print(f"Saved checkpoint for epoch {epoch}, batch {batch_num} in {batch_dir}\n")
 
-
-        
-
         # save every epoch - just the Lora adapter weights
         epoch_dir = os.path.join(base_dir, f"epoch{epoch}")
         os.makedirs(epoch_dir, exist_ok=True)
@@ -550,7 +544,6 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
         tokenizer.save_pretrained(epoch_dir)
         torch.save(optimizer.state_dict(), os.path.join(epoch_dir, "optimizer.pt"))
         print(f"Saved checkpoint for epoch {epoch} in {epoch_dir}\n")
-
 
         epoch_time = timer() - epoch_start
 
@@ -563,7 +556,6 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
         
         print(f"Epoch {epoch}: Validation Loss - Mutant: {mut_val_loss:.4f}, Wildtype: {wt_val_loss:.4f}\n")
 
-        
         loss_per_epoch.append((epoch, mut_val_loss, wt_val_loss))
 
         # plot heatmap for myc gene 
@@ -598,13 +590,9 @@ def train_model(tokenizer, base_model, frozen_base_model, descr, mut_train_data,
     #  after loop finishes 
     print("\nTraining complete.")
 
-
     # Plot and save loss plot
     plot_loss(loss_per_epoch, descr="Missense Model Finetuning", base_dir=base_dir)
     return
-
-    #return f"{descr} training complete. Best merged model saved to {final_dir}"
-
 
 def main():
     # Set reproducibility
@@ -639,15 +627,6 @@ def main():
     for p in frozen_base_model.parameters():
         p.requires_grad = False
 
-    '''
-    # Load finetuned model from last saved checkpoint
-    ckpt_path = f"/g/data/gi52/jaime/trained/esm2_650M_model/missense/run8/epoch0_batch35000"
-
-    # Load PEFT adapter onto base model
-    model = PeftModel.from_pretrained(base_model, ckpt_path, is_trainable=True)
-    model.to("cuda" if torch.cuda.is_available() else "cpu")
-    '''
-       
     # Tokenize and mask mutant sequences (mask the position where mutation occurs)
     mut_train_tokenized = mut_tokenize_and_mask_seqs(ms_train_df, tokenizer, 'mt_windowed_seq', window_size)
     mut_train_data = TorchDataset(mut_train_tokenized)
@@ -679,7 +658,6 @@ def main():
 
     t7 = timer()
     print(f"Total Time for training model: {t7 - t6:.4f} seconds")
-
 
 if __name__ == '__main__':
     main()
