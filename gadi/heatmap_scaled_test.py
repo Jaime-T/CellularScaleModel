@@ -208,7 +208,7 @@ def main():
     # rpl2 - gene for negative control
     rpl_gene = "rpl2"  
     rpl_sequence = "MILKKYKPTTPSLRGLVQIDRSLLWKGDPVKKLTVGMIESAGRNNTGRITVYHRGGGHKTKYRYIDFKRSNYNIPGIVERLEYDPNRTCFIALIKDNENNFSYILAPHDLKVGDTVITGNDIDIRIGNTLPLRNIPIGTMIHNIELNPGKGGKIVRSAGSSAQLISKDENGFCMLKLPSGEYRLFPNNSLATIGILSNIDNKNIKIGKAGRSRWMGRRPIVRGVAMNPVDHPHGGGEGKTSGGRPSVTPWSWPTKGQPTRSKRKYNKLIVQRAKKKI"
-   
+    
     gene_dict = {
         tp53_gene: tp53_sequence,
         myc_gene: myc_sequence,
@@ -226,7 +226,7 @@ def main():
         base_model = EsmForMaskedLM.from_pretrained(base_model_name)
 
         # Load missense fine-tuned model
-        ms_adapter_path = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run8/epoch0_batch{batch_num}"
+        ms_adapter_path = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run11/epoch0_batch{batch_num}"
         # Load the adapter into the model
         ms_model = PeftModel.from_pretrained(base_model, ms_adapter_path, is_trainable=False)
 
@@ -237,7 +237,7 @@ def main():
         # Load base model separately for comparison
         base_model_fresh = EsmForMaskedLM.from_pretrained(base_model_name)
 
-        base_dir = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run/heatmaps_fix"
+        base_dir = f"/g/data/gi52/jaime/trained/esm2_{params}M_model/missense/run11/heatmaps_fix"
         os.makedirs(base_dir, exist_ok=True)
 
         for gene in gene_dict.keys():
