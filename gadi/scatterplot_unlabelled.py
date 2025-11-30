@@ -162,28 +162,6 @@ def scaled_plot_heatmap(data, gene, title, sequence, base_dir, amino_acids):
     plt.savefig(save_path, dpi=300)
     plt.close()
 
-def topk_predictions(model, tokenizer, protein_seq, masked_pos, k=5):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-    model.eval()
-
-    tokens = list(protein_seq)
-    tokens[masked_pos - 1] = tokenizer.mask_token  # Replace 1-based index with mask
-    masked_seq = "".join(tokens)
-
-    inputs = tokenizer(masked_seq, return_tensors="pt").to(device)
-    
-    with torch.no_grad():
-        logits = model(**inputs).logits
-        mask_index = (inputs["input_ids"] == tokenizer.mask_token_id).nonzero(as_tuple=True)
-        prediction_logits = logits[mask_index]
-
-    probs = torch.softmax(prediction_logits, dim=-1)
-    topk = torch.topk(probs, k=k, dim=-1)
-    top_tokens = tokenizer.convert_ids_to_tokens(topk.indices[0].tolist())
-    top_probs = topk.values[0].tolist()
-
-    return list(zip(top_tokens, top_probs))
 
 def cartesian_plot(base_heatmap, ms_heatmap, save_dir, gene):
     """
@@ -252,8 +230,8 @@ def main():
     params = 650
 
     # Sequence and gene of interest 
-    #gene = "rpl15"  # Example gene for negative control
-    #sequence = "MGAYKYIQELWRKKQSDVMRFLLRVRCWQYRQLSALHRAPRPTRPDKARRLGYKAKQGYVIYRIRVRRGGRKRPVPKGATYGKPVHHGVNQLKFARSLQSVAEERAGRHCGALRVLNSYWVGEDSTYKFFEVILIDPFHKAIRRNPDTQWITKPVHKHREMRGLTSAGRKSRGLGKGHKFHHTIGGSRRAAWRRRNTLQLHRYR"
+    rpl15_gene = "rpl15"  # Example gene for negative control
+    rpl15_sequence = "MGAYKYIQELWRKKQSDVMRFLLRVRCWQYRQLSALHRAPRPTRPDKARRLGYKAKQGYVIYRIRVRRGGRKRPVPKGATYGKPVHHGVNQLKFARSLQSVAEERAGRHCGALRVLNSYWVGEDSTYKFFEVILIDPFHKAIRRNPDTQWITKPVHKHREMRGLTSAGRKSRGLGKGHKFHHTIGGSRRAAWRRRNTLQLHRYR"
 
     tp53_sequence = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD"
     tp53_gene = "tp53"
@@ -265,27 +243,17 @@ def main():
     # rpl2 - gene for negative control
     rpl2_gene = "rpl2"  
     rpl2_sequence = "MILKKYKPTTPSLRGLVQIDRSLLWKGDPVKKLTVGMIESAGRNNTGRITVYHRGGGHKTKYRYIDFKRSNYNIPGIVERLEYDPNRTCFIALIKDNENNFSYILAPHDLKVGDTVITGNDIDIRIGNTLPLRNIPIGTMIHNIELNPGKGGKIVRSAGSSAQLISKDENGFCMLKLPSGEYRLFPNNSLATIGILSNIDNKNIKIGKAGRSRWMGRRPIVRGVAMNPVDHPHGGGEGKTSGGRPSVTPWSWPTKGQPTRSKRKYNKLIVQRAKKKI"
-    
-    # brca1 
-    brca1_gene = "brca1"
-
-    # braf 
-    braf_gene = "braf"
-
-    # rpl15
-    rpl15_gene = "rpl15"
 
     # NEW PROTEIN TEST
     psma3_gene = "psma3"
     psma3_sequence = "MSSIGTGYDLSASTFSPDGRVFQVEYAMKAVENSSTAIGIRCKDGVVFGVEKLVLSKLYEEGSNKRLFNVDRHVGMAVAGLLADARSLADIAREEASNFRSNFGYNIPLKHLADRVAMYVHAYTLYSAVRPFGCSFMLGSYSVNDGAQLYMIDPSGVSYGYWGCAIGKARQAAKTEIEKLQMKEMTCRDIVKEVAKIIYIVHDEVKDKAFELELSWVGELTNGRHEIVPKDIREEAEKYAKESLKEEDESDDDNM"
 
     gene_dict = {
+        rpl15_gene: rpl15_sequence,
         tp53_gene: tp53_sequence,
         myc_gene: myc_sequence,
         rpl2_gene: rpl2_sequence,
         psma3_gene: psma3_sequence,
-
-
     }
   
 
@@ -328,20 +296,7 @@ def main():
 
             cartesian_plot(base_heatmap, ms_heatmap, save_path, gene)
 
-            '''
-
-            # Compute difference
-            ms_diff_heatmap = ms_heatmap - base_heatmap
-        
-            # Generate heatmap with scaling -1 to 1
-            scaled_plot_heatmap(base_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Original ESM2 Model (LLRs)", sequence, base_dir, amino_acids)
-            scaled_plot_heatmap(ms_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Fine-tuned Missense Model (LLRs)", sequence, base_dir, amino_acids)
-            
-            # Use custom plot for colour - diff heatmap
-            custom_plot_heatmap(ms_diff_heatmap, gene, f"Epoch 0, Batch {batch_num}: Scaled Difference (Fine-tuned Missense - Original)", sequence, base_dir, amino_acids)
-            '''
         print(f"[Batch {batch_num}] Heatmaps generated and saved to {base_dir}")
-
 
         # delete models to free up memory
         del csm_model, ms_model, base_model, base_model_fresh
