@@ -1,5 +1,5 @@
 # About this project
-Cellular Scale Model (CSM) is a prototype protein large language–model (PLLM) pipeline
+Cellular Scale Model (CSM) is a prototype protein large language model (PLLM) pipeline
 for enhancing variant interpretation in cancer.
 
 It builds on the pretrained ESM-2 model and fine-tunes it on human, cancer-relevant
@@ -70,7 +70,7 @@ summarised as below:
 
 ```bash
 git clone https://github.com/Jaime-T/CellularScaleModel.git
-cd <your-repo>
+cd CellularScaleModel
 ```
 
 2. **Environment setup**
